@@ -1,33 +1,16 @@
 import React from 'react';
 
-import { NotificationsProvider, ToastProvider, ErrorProvider } from '@features';
-import { AccountProvider, SettingsProvider, DataProvider } from '@services/Store';
-
-import { DevToolsProvider, StoreProvider, FeatureFlagProvider, RatesProvider } from '@services';
+import { ErrorProvider } from '@features';
+import { DevToolsProvider, StoreProvider } from '@services';
 
 function AppProviders({ children }: { children: JSX.Element[] | JSX.Element | null }) {
   return (
-    <FeatureFlagProvider>
-      <DevToolsProvider>
-        <ErrorProvider>
-          <DataProvider>
-            <SettingsProvider>
-              <AccountProvider>
-                <NotificationsProvider>
-                  <ToastProvider>
-                    {/* StoreProvider relies on the others Providers */}
-                    <StoreProvider>
-                      {/* RatesProvider relies on the Store */}
-                      <RatesProvider>{children}</RatesProvider>
-                    </StoreProvider>
-                  </ToastProvider>
-                </NotificationsProvider>
-              </AccountProvider>
-            </SettingsProvider>
-          </DataProvider>
-        </ErrorProvider>
-      </DevToolsProvider>
-    </FeatureFlagProvider>
+    <DevToolsProvider>
+      <ErrorProvider>
+        {/* StoreProvider relies on the others Providers */}
+        <StoreProvider>{children}</StoreProvider>
+      </ErrorProvider>
+    </DevToolsProvider>
   );
 }
 

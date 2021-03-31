@@ -1,22 +1,25 @@
 import React, { useContext } from 'react';
 
-import styled from 'styled-components';
 import BN from 'bn.js';
 import { addHexPrefix } from 'ethereumjs-util';
+import { connect, ConnectedProps } from 'react-redux';
+import styled from 'styled-components';
 
-import { AccountSelector, Button, Typography, GasSelector } from '@components';
-import { StoreAccount, ITxConfig, Network } from '@types';
-import {
-  StoreContext,
-  hexToString,
-  baseToConvertedUnit,
-  inputGasPriceToHex,
-  hexWeiToString
-} from '@services';
+import { AccountSelector, Button, DemoGatewayBanner, GasSelector, Typography } from '@components';
+import { StoreContext } from '@services';
+import { AppState, getIsDemoMode } from '@store';
 import { translateRaw } from '@translations';
-import { COLORS } from '@theme';
+import { ITxConfig, Network, StoreAccount } from '@types';
+import {
+  baseToConvertedUnit,
+  getAccountsByNetwork,
+  getAccountsByViewOnly,
+  hexToString,
+  hexWeiToString,
+  inputGasPriceToHex
+} from '@utils';
+import { pipe } from '@vendor';
 
-import { getAccountsInNetwork } from '../helpers';
 import { ABIItem } from '../types';
 
 const WriteActionWrapper = styled.div`
@@ -31,25 +34,24 @@ const AccountSelectorWrapper = styled.div`
 
 const ActionButton = styled(Button)`
   margin-top: 18px;
-  width: fit-content;
 `;
 
 const CustomLabel = styled(Typography)`
   font-size: 1em;
 `;
 
-interface Props {
+interface WriteProps {
   account: StoreAccount;
   network: Network;
   currentFunction: ABIItem;
   rawTransaction: ITxConfig;
-  estimateGasCallProps: object;
+  estimateGasCallProps: TObject;
   handleAccountSelected(account: StoreAccount): void;
   handleSubmit(submitedFunction: ABIItem): void;
   handleGasSelectorChange(payload: any): void;
 }
 
-export default function WriteForm(props: Props) {
+export const WriteForm = (props: Props) => {
   const {
     account,
     network,
@@ -58,13 +60,17 @@ export default function WriteForm(props: Props) {
     estimateGasCallProps,
     handleAccountSelected,
     handleSubmit,
-    handleGasSelectorChange
+    handleGasSelectorChange,
+    isDemoMode
   } = props;
 
   const { gasPrice, gasLimit, nonce } = rawTransaction;
 
   const { accounts } = useContext(StoreContext);
-  const filteredAccounts = getAccountsInNetwork(accounts, network.id);
+  const filteredAccounts = pipe(
+    (a: StoreAccount[]) => getAccountsByNetwork(a, network.id),
+    (a) => getAccountsByViewOnly(a, false)
+  )(accounts);
 
   const handleGasPriceChange = (val: string) => {
     if (val.length) {
@@ -78,15 +84,16 @@ export default function WriteForm(props: Props) {
     gasPrice.length ? baseToConvertedUnit(hexToString(gasPrice), 9) : gasPrice;
 
   const handleGasLimitChange = (val: string) => {
-    handleGasSelectorChange({ gasLimit: Number(val) });
+    handleGasSelectorChange({ gasLimit: val });
   };
 
   const handleNonceChange = (val: string) => {
-    handleGasSelectorChange({ nonce: Number(val) });
+    handleGasSelectorChange({ nonce: val });
   };
 
   return (
     <WriteActionWrapper>
+      {isDemoMode && <DemoGatewayBanner />}
       <CustomLabel>{translateRaw('ACCOUNT')}</CustomLabel>
       <AccountSelectorWrapper>
         <AccountSelector
@@ -111,9 +118,22 @@ export default function WriteForm(props: Props) {
         )}
       </AccountSelectorWrapper>
 
-      <ActionButton color={COLORS.WHITE} onClick={() => handleSubmit(currentFunction)}>
+      <ActionButton
+        disabled={isDemoMode}
+        onClick={() => handleSubmit(currentFunction)}
+        fullwidth={true}
+      >
         {translateRaw('ACTION_17')}
       </ActionButton>
     </WriteActionWrapper>
   );
-}
+};
+
+const mapStateToProps = (state: AppState) => ({
+  isDemoMode: getIsDemoMode(state)
+});
+
+const connector = connect(mapStateToProps);
+type Props = ConnectedProps<typeof connector> & WriteProps;
+
+export default connector(WriteForm);

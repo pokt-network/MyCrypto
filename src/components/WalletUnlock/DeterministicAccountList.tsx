@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+
 import styled from 'styled-components';
 
-import { Trans } from '@translations';
-import { ExtendedAsset, TAddress, Network } from '@types';
-import { Button, Typography, Tooltip, Icon } from '@components';
-import { BREAK_POINTS, COLORS, SPACING } from '@theme';
+import { Button, Icon, PoweredByText, Spinner, Tooltip, Typography } from '@components';
 import { DWAccountDisplay } from '@services';
-import { isSameAddress, accountsToCSV, useScreenSize, makeBlob } from '@utils';
-import { uniqBy, prop } from '@vendor';
+import { BREAK_POINTS, COLORS, SPACING } from '@theme';
+import { Trans } from '@translations';
+import { ExtendedAsset, Network, TAddress } from '@types';
+import { accountsToCSV, isSameAddress, useScreenSize } from '@utils';
+import { prop, uniqBy } from '@vendor';
 
+import { Downloader } from '../Downloader';
 import DeterministicTable from './DeterministicAccountTable';
 
 const DeterministicAccountListWrapper = styled.div`
@@ -62,18 +64,22 @@ const StatusWrapper = styled.div`
   }
 `;
 
-const Loader = styled.div`
-  padding-right: ${SPACING.BASE};
-  margin-right: ${SPACING.BASE};
-`;
-
 const IconWrapper = styled.div`
-  margin-right: ${SPACING.BASE};
+  margin-right: 17px;
   display: flex;
   align-items: center;
 `;
 
 const SButton = styled.span`
+  color: ${COLORS.BLUE_MYC};
+  cursor: pointer;
+  font-weight: bold;
+  &:hover {
+    color: ${COLORS.BLUE_LIGHT_DARKISH};
+  }
+`;
+
+const SDownloader = styled(Downloader)`
   color: ${COLORS.BLUE_MYC};
   cursor: pointer;
   font-weight: bold;
@@ -148,8 +154,7 @@ export default function DeterministicAccountList({
     );
   };
 
-  const handleDownload = () =>
-    window.open(makeBlob('text/csv', accountsToCSV(finishedAccounts, asset)));
+  const csv = accountsToCSV(finishedAccounts, asset);
   return (
     <DeterministicAccountListWrapper>
       <TableWrapper>
@@ -162,7 +167,7 @@ export default function DeterministicAccountList({
           asset={asset}
           onSelect={handleSelection}
           handleUpdate={handleUpdate}
-          downloadCSV={handleDownload}
+          csv={csv}
           freshAddressIndex={freshAddressIndex}
         />
       </TableWrapper>
@@ -170,7 +175,7 @@ export default function DeterministicAccountList({
         {isComplete && !!accountsToUse.length && (
           <StatusWrapper>
             <IconWrapper>
-              <Icon type="confirm" />
+              <Icon type="confirm" width="20px" />
             </IconWrapper>
             <Typography>
               <Trans
@@ -181,6 +186,7 @@ export default function DeterministicAccountList({
                 <Trans id="DETERMINISTIC_SCAN_AGAIN" />
               </SButton>
               .
+              <PoweredByText provider="FINDETH" />
             </Typography>
           </StatusWrapper>
         )}
@@ -189,15 +195,18 @@ export default function DeterministicAccountList({
             <IconWrapper>
               <Icon type="info-small" />
             </IconWrapper>
-            <Trans
-              id="DETERMINISTIC_SCANNING_STATUS_EMPTY"
-              variables={{ $asset: () => asset.ticker }}
-            />
+            <Typography>
+              <Trans
+                id="DETERMINISTIC_SCANNING_STATUS_EMPTY"
+                variables={{ $asset: () => asset.ticker }}
+              />
+              <PoweredByText provider="FINDETH" />
+            </Typography>
           </StatusWrapper>
         )}
         {!isComplete && (
           <StatusWrapper>
-            <Loader className="loading" />
+            <Spinner color="brand" mr={SPACING.BASE} pr={SPACING.BASE} />
             <div>
               <Trans
                 id="DETERMINISTIC_SCANNING_STATUS_RUNNING"
@@ -213,22 +222,28 @@ export default function DeterministicAccountList({
                       id="DETERMINISTIC_CSV"
                       variables={{ $total: () => finishedAccounts.length }}
                     />{' '}
-                    <SButton onClick={handleDownload}>here</SButton>.
+                    <SDownloader data={csv} fileName="accounts.csv" mime="text/csv">
+                      <Trans id="DETERMINISTIC_ALTERNATIVES_5" />
+                    </SDownloader>
+                    .
                   </>
                 }
               />
+              <PoweredByText provider="FINDETH" />
             </div>
           </StatusWrapper>
         )}
-        <Button onClick={handleSubmit} disabled={!selectedAccounts.length} fullwidth={isMobile}>
-          <Trans
-            id="DETERMINISTIC_ACCOUNT_LIST_ADD"
-            variables={{
-              $total: () => (selectedAccounts.length ? selectedAccounts.length : ''),
-              $plural: () => (selectedAccounts.length > 1 ? 's' : '')
-            }}
-          />
-        </Button>
+        <div>
+          <Button onClick={handleSubmit} disabled={!selectedAccounts.length} fullwidth={isMobile}>
+            <Trans
+              id="DETERMINISTIC_ACCOUNT_LIST_ADD"
+              variables={{
+                $total: () => (selectedAccounts.length ? selectedAccounts.length : ''),
+                $plural: () => (selectedAccounts.length > 1 ? 's' : '')
+              }}
+            />
+          </Button>
+        </div>
       </StatusBar>
     </DeterministicAccountListWrapper>
   );

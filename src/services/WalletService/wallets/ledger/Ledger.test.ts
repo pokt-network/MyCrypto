@@ -1,4 +1,5 @@
 import { RecordStore } from '@ledgerhq/hw-transport-mocker';
+
 import { DPathsList } from '@config';
 
 import LedgerUSB from './LedgerUSB';
@@ -18,7 +19,7 @@ describe('Ledger', () => {
 `);
 
     const wallet = new LedgerUSBMock(store);
-    await wallet.initialize();
+    await wallet.initialize(DPathsList.ETH_LEDGER);
 
     await expect(wallet.getAddress(DPathsList.ETH_DEFAULT, 10)).resolves.toMatchSnapshot();
     await expect(wallet.getAddress(DPathsList.ETH_DEFAULT, 15)).resolves.toMatchSnapshot();
@@ -35,7 +36,7 @@ describe('Ledger', () => {
     `);
 
     const wallet = new LedgerUSBMock(store);
-    await wallet.initialize();
+    await wallet.initialize(DPathsList.ETH_LEDGER);
 
     await expect(wallet.getAddress(DPathsList.ETH_LEDGER_LIVE, 10)).resolves.toMatchSnapshot();
     await expect(wallet.getAddress(DPathsList.ETH_LEDGER_LIVE, 15)).resolves.toMatchSnapshot();

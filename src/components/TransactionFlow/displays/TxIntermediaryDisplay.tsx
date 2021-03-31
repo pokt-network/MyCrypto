@@ -1,19 +1,27 @@
 import React from 'react';
-import styled from 'styled-components';
-import { Copyable } from '@mycrypto/ui';
 
+import { Copyable } from '@mycrypto/ui';
+import styled from 'styled-components';
+
+import { Icon, Tooltip } from '@components';
+import { COLORS } from '@theme';
 import { translateRaw } from '@translations';
-import { Tooltip } from '@components';
 
 interface Props {
   address: string;
-  contractName: string;
+  contractName?: string;
 }
 
 const Wrapper = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
+  div > button {
+    font-size: 16px;
+  }
+  svg > path {
+    fill: ${COLORS.BLUE_SKY};
+  }
 `;
 
 const IntermediaryDisplay = styled('div')`
@@ -38,11 +46,9 @@ const IntermediaryDisplayLabel = styled('div')`
 `;
 
 const IntermediaryDisplayContract = styled(Copyable)`
-  font-size: 16px;
   align-items: center;
   display: flex;
   flex-direction: row;
-  color: #282d32;
 `;
 
 function TxIntermediaryDisplay({ address, contractName }: Props) {
@@ -54,13 +60,15 @@ function TxIntermediaryDisplay({ address, contractName }: Props) {
             <div>
               <IntermediaryDisplayLabel>
                 {translateRaw('TRANSACTION_PERFORMED_VIA_CONTRACT', {
-                  $contractName: contractName
+                  $contractName: contractName || translateRaw('UNKNOWN').toLowerCase()
                 })}
                 :
               </IntermediaryDisplayLabel>
               <IntermediaryDisplayContract text={address} isCopyable={true} />
             </div>
-            <Tooltip tooltip={translateRaw('TOKEN_SEND_TOOLTIP')} />
+            <Tooltip tooltip={translateRaw('TOKEN_SEND_TOOLTIP')}>
+              <Icon type="questionWhite" />
+            </Tooltip>
           </Wrapper>
         </IntermediaryDisplay>
       )}

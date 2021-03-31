@@ -1,38 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
+import React, { useEffect, useState } from 'react';
+
 import { OptionProps } from 'react-select';
-import BN from 'bn.js';
+import styled from 'styled-components';
 
-import translate, { translateRaw } from '@translations';
-import {
-  Input,
-  Spinner,
-  Account,
-  LinkOut,
-  Typography,
-  Selector,
-  NewTabLink,
-  Button,
-  InlineMessage
-} from '@components';
-import { Network, TTicker } from '@types';
-import {
-  getBaseAssetByNetwork,
-  getLabelByAddressAndNetwork,
-  isValidPath,
-  fromWei
-} from '@services';
-import { useAssets, useContacts } from '@services/Store';
-import { HELP_ARTICLE, DEFAULT_NETWORK_TICKER } from '@config';
-import { DeterministicWalletData, getDeterministicWallets } from '@services/WalletService';
-import { getBaseAssetBalances, BalanceMap } from '@services/Store/BalanceService';
-import { COLORS, monospace, SPACING, FONT_SIZE, BREAK_POINTS } from '@theme';
-
-import { Table } from '../Table';
-
+import questionSVG from '@assets/images/icn-question.svg';
 import nextIcon from '@assets/images/next-page-button.svg';
 import prevIcon from '@assets/images/previous-page-button.svg';
-import questionSVG from '@assets/images/icn-question.svg';
+import {
+  Account,
+  Box,
+  Button,
+  Icon,
+  InlineMessage,
+  Input,
+  LinkApp,
+  Selector,
+  Spinner,
+  Typography
+} from '@components';
+import { DEFAULT_NETWORK_TICKER, HELP_ARTICLE } from '@config';
+import { getBaseAssetByNetwork, getLabelByAddressAndNetwork, isValidPath } from '@services';
+import { useAssets, useContacts } from '@services/Store';
+import { BalanceMap, getBaseAssetBalancesForAddresses } from '@services/Store/BalanceService';
+import { DeterministicWalletData, getDeterministicWallets } from '@services/WalletService';
+import { BREAK_POINTS, COLORS, FONT_SIZE, monospace, SPACING } from '@theme';
+import translate, { translateRaw } from '@translations';
+import { DPath, Network, TAddress, TTicker } from '@types';
+import { bigify, buildAddressUrl, fromWei } from '@utils';
+
+import { Table } from '../Table';
 
 const { GREY_LIGHTEST, BLUE_LIGHTEST, GREY_DARK } = COLORS;
 
@@ -65,6 +61,7 @@ const Title = styled.div`
 
 const SDropdown = styled.div`
   width: 365px;
+  margin-left: ${SPACING.SM};
 
   @media (max-width: ${BREAK_POINTS.SCREEN_XS}) {
     width: 100%;
@@ -81,7 +78,7 @@ const DropdownDPath = styled.span`
 const SContainer = styled('div')`
   display: flex;
   flex-direction: row;
-  padding: 12px;
+  padding: 12px 12px 12px 0px;
 `;
 
 const CustomDPath = styled.div`
@@ -113,13 +110,12 @@ const DWTable = styled(Table)<{ selected: number; page: number; disabled: boolea
   tbody {
     tr {
       cursor: pointer;
-
       /* Highlight selected row */
       ${({ selected, page }) =>
         Math.trunc(selected / WALLETS_PER_PAGE) === page &&
         `:nth-child(${(selected % WALLETS_PER_PAGE) + 1}) {
-      background: ${BLUE_LIGHTEST};
-    }`};
+            background: ${BLUE_LIGHTEST};
+          };`};
 
       /* On hover don't highlight selected row */
       :not(:nth-child(${({ selected, page }) =>
@@ -274,18 +270,19 @@ export function DeterministicWalletsClass({
   const getBaseBalances = () => {
     const addressesToLookup = wallets.map((wallet) => wallet.address);
     try {
-      return getBaseAssetBalances(addressesToLookup, network).then((balanceMapData: BalanceMap) => {
-        const walletsWithBalances: DeterministicWalletData[] = wallets.map((wallet) => {
-          const balance = balanceMapData[wallet.address] || 0;
-          const value = new BN(balance.toString());
-          return {
-            ...wallet,
-            value
-          };
-        });
-        setRequestingBalanceCheck(false);
-        setWallets(walletsWithBalances);
-      });
+      return getBaseAssetBalancesForAddresses(addressesToLookup, network).then(
+        (balanceMapData: BalanceMap) => {
+          const walletsWithBalances: DeterministicWalletData[] = wallets.map((wallet) => {
+            const balance = balanceMapData[wallet.address] || 0;
+            return {
+              ...wallet,
+              value: balance
+            };
+          });
+          setRequestingBalanceCheck(false);
+          setWallets(walletsWithBalances);
+        }
+      );
     } catch (err) {
       console.error('getBaseBalance err ', err);
     }
@@ -346,40 +343,36 @@ export function DeterministicWalletsClass({
   const renderWalletRow = (
     wallet: DeterministicWalletData,
     // tslint:disable-next-line: no-shadowed-variable
-    network: Network | undefined,
+    network: Network,
     // tslint:disable-next-line: no-shadowed-variable
     ticker: TTicker
   ) => {
     const addrBook = getLabelByAddressAndNetwork(wallet.address.toLowerCase(), contacts, network);
-    let blockExplorer;
-    if (network && !network.isCustom && network.blockExplorer) {
-      blockExplorer = network.blockExplorer;
-    } else {
-      blockExplorer = {
-        addressUrl: (address: string) => {
-          return `https://ethplorer.io/address/${address}`;
-        }
-      };
-    }
 
-    // tslint:disable:jsx-key
     return [
-      <div>{wallet.index + 1}</div>,
+      <div key="wallet-row-0">{wallet.index + 1}</div>,
       <Account
+        key="wallet-row-1"
         title={addrBook ? addrBook.label : translateRaw('NO_ADDRESS')}
         address={wallet.address}
         truncate={true}
       />,
-      <div>
+      <div key="wallet-row-2">
         {!wallet.value ? (
           <Spinner />
         ) : (
-          `${parseFloat(fromWei(wallet.value, 'ether')).toFixed(4)} ${ticker}`
+          `${bigify(fromWei(wallet.value, 'ether')).toFixed(4)} ${ticker}`
         )}
       </div>,
-      <LinkOut link={blockExplorer.addressUrl(wallet.address)} />
+      <Box key="wallet-row-3" display={'inline-flex'} alignItems={'center'}>
+        <LinkApp
+          href={buildAddressUrl(network.blockExplorer, wallet.address as TAddress)}
+          isExternal={true}
+        >
+          <Icon type="link-out" width="1em" />
+        </LinkApp>
+      </Box>
     ];
-    // tslint:enable:jsx-key
   };
 
   let baseAssetTicker: TTicker | undefined;
@@ -396,9 +389,9 @@ export function DeterministicWalletsClass({
         <SDropdown>
           <label>
             {translate('DPATH')}{' '}
-            <NewTabLink href={HELP_ARTICLE.DPATH}>
-              <img src={questionSVG} />
-            </NewTabLink>
+            <LinkApp href={HELP_ARTICLE.DPATH} isExternal={true}>
+              <img width="16px" src={questionSVG} />
+            </LinkApp>
           </label>
           <Selector
             value={currentDPath}
@@ -406,7 +399,6 @@ export function DeterministicWalletsClass({
             options={dPaths.concat([customDPath])}
             optionComponent={DPathOption}
             valueComponent={({ value }) => <DPathOption data={value} />}
-            clearable={false}
             searchable={false}
           />
         </SDropdown>
@@ -441,7 +433,7 @@ export function DeterministicWalletsClass({
         selected={selectedAddressIndex}
         page={page}
         head={['#', translateRaw('ADDRESS'), ticker, translateRaw('ACTION_5')]}
-        body={wallets.map((wallet) => renderWalletRow(wallet, network, ticker))}
+        body={wallets.map((wallet) => renderWalletRow(wallet, network!, ticker))}
         config={{
           handleRowClicked: selectAddress
         }}
@@ -453,8 +445,8 @@ export function DeterministicWalletsClass({
           <img src={nextIcon} onClick={nextPage} />
         </Nav>
         <ButtonsGroup>
-          <CancelButton onClick={onCancel} inverted={true}>
-            {translate('ACTION_2')}
+          <CancelButton onClick={onCancel} colorScheme={'inverted'}>
+            {translate('CANCEL_ACTION')}
           </CancelButton>
           <Button onClick={handleConfirmAddress} disabled={!selectedAddress}>
             {translate('ACTION_6')}

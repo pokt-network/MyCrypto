@@ -1,20 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import styled from 'styled-components';
+
 import BN from 'bn.js';
 import { addHexPrefix } from 'ethereumjs-util';
+import styled from 'styled-components';
 
-import { InputField, Typography, Checkbox } from '@components';
-import { translateRaw } from '@translations';
-import {
-  fetchGasPriceEstimates,
-  inputGasPriceToHex,
-  hexWeiToString,
-  getNonce,
-  getGasEstimate,
-  hexToNumber
-} from '@services';
-import { StoreAccount } from '@types';
+import { Checkbox, InputField, Typography } from '@components';
+import { getWalletConfig } from '@config';
+import { fetchGasPriceEstimates, getGasEstimate, getNonce } from '@services';
 import { COLORS, monospace } from '@theme';
+import translate, { translateRaw } from '@translations';
+import { StoreAccount } from '@types';
+import { hexWeiToString, inputGasPriceToHex } from '@utils';
 
 const { GREY_LIGHTER } = COLORS;
 
@@ -43,25 +39,26 @@ interface Props {
   gasLimit: string;
   nonce: string;
   account: StoreAccount;
-  estimateGasCallProps: object;
+  estimateGasCallProps: TObject;
   setGasPrice(gasPrice: string): void;
   setGasLimit(gasLimit: string): void;
   setNonce(nonce: string): void;
 }
 
-export default function GasSelector(props: Props) {
-  const {
-    gasPrice,
-    gasLimit,
-    nonce,
-    setGasPrice,
-    setGasLimit,
-    setNonce,
-    estimateGasCallProps,
-    account
-  } = props;
-
+export default function GasSelector({
+  gasPrice,
+  gasLimit,
+  nonce,
+  setGasPrice,
+  setGasLimit,
+  setNonce,
+  estimateGasCallProps,
+  account
+}: Props) {
   const [isAutoGasSet, setIsAutoGasSet] = useState(true);
+
+  const walletConfig = getWalletConfig(account.wallet);
+  const supportsNonce = walletConfig.flags.supportsNonce;
 
   useEffect(() => {
     if (isAutoGasSet) {
@@ -104,7 +101,7 @@ export default function GasSelector(props: Props) {
         chainId: network.chainId
       });
       const fetchedGasLimit = await getGasEstimate(network, txConfig);
-      setGasLimit(hexToNumber(fetchedGasLimit).toString());
+      setGasLimit(fetchedGasLimit);
     } catch (e) {
       console.debug(e);
     }
@@ -141,6 +138,12 @@ export default function GasSelector(props: Props) {
           value={nonce}
           onChange={handleNonceChange}
           inputMode="decimal"
+          disabled={!supportsNonce}
+          inputError={
+            !supportsNonce
+              ? translate('DISABLED_NONCE', { $provider: walletConfig.name })
+              : undefined
+          }
         />
       </FieldWrapper>
     </Wrapper>

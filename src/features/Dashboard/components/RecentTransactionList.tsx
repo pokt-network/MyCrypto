@@ -1,63 +1,43 @@
-import React, { useContext } from 'react';
+import React from 'react';
+
 import styled from 'styled-components';
-import { Overwrite } from 'utility-types';
 
+import approval from '@assets/images/transactions/approval.svg';
+import contractDeploy from '@assets/images/transactions/contract-deploy.svg';
+import contractInteract from '@assets/images/transactions/contract-interact.svg';
+import defizap from '@assets/images/transactions/defizap.svg';
+import inbound from '@assets/images/transactions/inbound.svg';
+import membershipPurchase from '@assets/images/transactions/membership-purchase.svg';
+import outbound from '@assets/images/transactions/outbound.svg';
+import swap from '@assets/images/transactions/swap.svg';
+import transfer from '@assets/images/transactions/transfer.svg';
 import {
-  Amount,
-  DashboardPanel,
-  AssetIcon,
   Account,
-  FixedSizeCollapsibleTable,
+  Amount,
+  AssetIcon,
+  Box,
+  DashboardPanel,
   EditableAccountLabel,
-  RouterLink
+  FixedSizeCollapsibleTable,
+  Icon,
+  LinkApp
 } from '@components';
-import { convertToFiat } from '@utils';
-import { ITxReceipt, ITxStatus, StoreAccount, Asset, Network, ExtendedContact } from '@types';
-import {
-  getLabelByAddressAndNetwork,
-  SettingsContext,
-  useNetworks,
-  useContacts,
-  useRates
-} from '@services';
-import { translateRaw } from '@translations';
-import {
-  getTxsFromAccount,
-  txIsFailed,
-  txIsPending,
-  txIsSuccessful
-} from '@services/Store/helpers';
-import { COLORS } from '@theme';
-import { getFiat } from '@config/fiats';
 import { ROUTE_PATHS } from '@config';
+import { getFiat } from '@config/fiats';
+import { ITxHistoryEntry, useRates, useSettings, useTxHistory } from '@services';
+import { txIsFailed, txIsPending, txIsSuccessful } from '@services/Store/helpers';
+import { COLORS } from '@theme';
+import { translateRaw } from '@translations';
+import { Asset, ITxStatus, StoreAccount } from '@types';
+import { bigify, convertToFiat, isSameAddress, useScreenSize } from '@utils';
 
+import { ITxHistoryType } from '../types';
 import NoTransactions from './NoTransactions';
 import TransactionLabel from './TransactionLabel';
-import { ITxHistoryType } from '../types';
-import { deriveTxType } from '../helpers';
-import './RecentTransactionList.scss';
-
-import moreIcon from '@assets/images/icn-more.svg';
-import transfer from '@assets/images/transactions/transfer.svg';
-import inbound from '@assets/images/transactions/inbound.svg';
-import outbound from '@assets/images/transactions/outbound.svg';
-import approval from '@assets/images/transactions/approval.svg';
-import contractInteract from '@assets/images/transactions/contract-interact.svg';
-import contractDeploy from '@assets/images/transactions/contract-deploy.svg';
-import defizap from '@assets/images/transactions/defizap.svg';
-import membershipPurchase from '@assets/images/transactions/membership-purchase.svg';
-import swap from '@assets/images/transactions/swap.svg';
 
 interface Props {
   className?: string;
   accountsList: StoreAccount[];
-}
-
-interface ITxHistoryEntry
-  extends Overwrite<ITxReceipt, { txType: ITxHistoryType; timestamp: number }> {
-  network: Network;
-  toAddressBookEntry?: ExtendedContact;
-  fromAddressBookEntry?: ExtendedContact;
 }
 
 interface ITxTypeConfigObj {
@@ -92,19 +72,31 @@ const TxTypeConfig: ITxTypeConfig = {
     icon: transfer
   },
   [ITxHistoryType.REP_TOKEN_MIGRATION]: {
-    label: (_: Asset) => translateRaw('RECENT_TX_LIST_LABEL_REP_MIGRATION'),
+    label: () => translateRaw('RECENT_TX_LIST_LABEL_REP_MIGRATION'),
+    icon: transfer
+  },
+  [ITxHistoryType.AAVE_TOKEN_MIGRATION]: {
+    label: () => translateRaw('RECENT_TX_LIST_LABEL_AAVE_MIGRATION'),
+    icon: transfer
+  },
+  [ITxHistoryType.ANT_TOKEN_MIGRATION]: {
+    label: () => translateRaw('RECENT_TX_LIST_LABEL_ANT_MIGRATION'),
+    icon: transfer
+  },
+  [ITxHistoryType.GOLEM_TOKEN_MIGRATION]: {
+    label: () => translateRaw('RECENT_TX_LIST_LABEL_GOLEM_MIGRATION'),
     icon: transfer
   },
   [ITxHistoryType.DEFIZAP]: {
-    label: (_: Asset) => translateRaw('RECENT_TX_LIST_LABEL_DEFIZAP_ADD'),
+    label: () => translateRaw('RECENT_TX_LIST_LABEL_DEFIZAP_ADD'),
     icon: defizap
   },
   [ITxHistoryType.PURCHASE_MEMBERSHIP]: {
-    label: (_: Asset) => translateRaw('RECENT_TX_LIST_LABEL_MEMBERSHIP_PURCHASED'),
+    label: () => translateRaw('RECENT_TX_LIST_LABEL_MEMBERSHIP_PURCHASED'),
     icon: membershipPurchase
   },
   [ITxHistoryType.SWAP]: {
-    label: (_: Asset) => translateRaw('RECENT_TX_LIST_LABEL_SWAP'),
+    label: () => translateRaw('RECENT_TX_LIST_LABEL_SWAP'),
     icon: swap
   },
   [ITxHistoryType.APPROVAL]: {
@@ -113,12 +105,19 @@ const TxTypeConfig: ITxTypeConfig = {
     icon: approval
   },
   [ITxHistoryType.CONTRACT_INTERACT]: {
-    label: (_: Asset) => translateRaw('RECENT_TX_LIST_LABEL_CONTRACT_INTERACT'),
+    label: () => translateRaw('RECENT_TX_LIST_LABEL_CONTRACT_INTERACT'),
     icon: contractInteract
   },
   [ITxHistoryType.DEPLOY_CONTRACT]: {
-    label: (_: Asset) => translateRaw('RECENT_TX_LIST_LABEL_CONTRACT_DEPLOY'),
+    label: () => translateRaw('RECENT_TX_LIST_LABEL_CONTRACT_DEPLOY'),
     icon: contractDeploy
+  },
+  [ITxHistoryType.FAUCET]: {
+    label: (asset: Asset) =>
+      translateRaw('RECENT_TX_LIST_LABEL_RECEIVED', {
+        $ticker: asset.ticker || translateRaw('UNKNOWN')
+      }),
+    icon: inbound
   }
 };
 
@@ -151,37 +150,27 @@ const SCombinedCircle = (asset: Asset) => {
 const makeTxIcon = (type: ITxHistoryType, asset: Asset) => {
   const greyscaleIcon = asset && <>{SCombinedCircle(asset)}</>;
   const baseIcon = (
-    <div className="TransactionLabel-image">
+    <Box mr="16px" position="relative">
       <img
         src={TxTypeConfig[type] ? TxTypeConfig[type].icon : transfer}
-        width="56px"
-        height="56px"
+        width="45px"
+        height="45px"
       />
       {greyscaleIcon}
-    </div>
+    </Box>
   );
   return baseIcon;
 };
 
 export default function RecentTransactionList({ accountsList, className = '' }: Props) {
-  const { contacts } = useContacts();
   const { getAssetRate } = useRates();
-  const { settings } = useContext(SettingsContext);
-  const { networks } = useNetworks();
+  const { settings } = useSettings();
+  const { txHistory } = useTxHistory();
+  const { isMobile } = useScreenSize();
 
-  const accountTxs: ITxHistoryEntry[] = getTxsFromAccount(accountsList).map((tx: ITxReceipt) => {
-    const network = networks.find(({ id }) => tx.asset.networkId === id) as Network;
-    const toContact = getLabelByAddressAndNetwork(tx.receiverAddress || tx.to, contacts, network);
-    const fromContact = getLabelByAddressAndNetwork(tx.from, contacts, network);
-    return {
-      ...tx,
-      timestamp: tx.timestamp || 0,
-      txType: deriveTxType(accountsList, tx) || ITxHistoryType.UNKNOWN,
-      toContact,
-      fromContact,
-      network
-    };
-  });
+  const accountTxs = txHistory.filter((tx) =>
+    accountsList.some((a) => isSameAddress(a.address, tx.to) || isSameAddress(a.address, tx.from))
+  );
 
   const pending = accountTxs.filter(txIsPending);
   const completed = accountTxs.filter(txIsSuccessful);
@@ -200,19 +189,20 @@ export default function RecentTransactionList({ accountsList, className = '' }: 
         asset,
         fromAddressBookEntry,
         toAddressBookEntry,
-        network,
+        networkId,
         txType
       }) => {
-        const editableFromLabel = EditableAccountLabel({
+        const labelFromProps = {
           addressBookEntry: fromAddressBookEntry,
           address: from,
-          networkId: network.id
-        });
-        const editableToLabel = EditableAccountLabel({
+          networkId
+        };
+
+        const labelToProps = {
           addressBookEntry: toAddressBookEntry,
           address: receiverAddress || to,
-          networkId: network.id
-        });
+          networkId
+        };
 
         return [
           <TransactionLabel
@@ -222,30 +212,45 @@ export default function RecentTransactionList({ accountsList, className = '' }: 
             stage={status}
             date={timestamp}
           />,
-          <Account key={1} title={editableFromLabel} truncate={true} address={from} />,
+          <Account
+            key={1}
+            title={<EditableAccountLabel {...labelFromProps} />}
+            truncate={true}
+            address={from}
+          />,
           to && (
             <Account
               key={2}
-              title={editableToLabel}
+              title={<EditableAccountLabel {...labelToProps} />}
               truncate={true}
               address={receiverAddress || to}
             />
           ),
-          <Amount
-            key={3}
-            assetValue={`${parseFloat(amount).toFixed(4)} ${asset.ticker}`}
-            fiat={{
-              symbol: getFiat(settings).symbol,
-              ticker: getFiat(settings).ticker,
-              amount: convertToFiat(parseFloat(amount), getAssetRate(asset)).toFixed(2)
-            }}
-          />,
-          <RouterLink
-            key={4}
-            to={`${ROUTE_PATHS.TX_STATUS.path}/?hash=${hash}&network=${network.id}`}
-          >
-            <img src={moreIcon} alt="View more information about this transaction" />
-          </RouterLink>
+          <Box key={3}>
+            <Amount
+              // Adapt alignment for mobile display
+              alignLeft={isMobile}
+              assetValue={`${bigify(amount).toFixed(4)} ${asset.ticker}`}
+              fiat={{
+                symbol: getFiat(settings).symbol,
+                ticker: getFiat(settings).ticker,
+                amount: convertToFiat(amount, getAssetRate(asset)).toFixed(2)
+              }}
+            />
+          </Box>,
+          <Box key={4} variant="rowCenter">
+            <LinkApp href={`${ROUTE_PATHS.TX_STATUS.path}/?hash=${hash}&network=${networkId}`}>
+              {isMobile ? (
+                translateRaw('RECENT_TRANSACTIONS_VIEW_MORE')
+              ) : (
+                <Icon
+                  type="more"
+                  alt="View more information about this transaction"
+                  height="24px"
+                />
+              )}
+            </LinkApp>
+          </Box>
         ];
       }
     );
@@ -281,16 +286,12 @@ export default function RecentTransactionList({ accountsList, className = '' }: 
       sortableColumn: translateRaw('RECENT_TRANSACTIONS_DATE'),
       sortFunction: () => (a: any, b: any) => b.props.date - a.props.date,
       hiddenHeadings: [translateRaw('RECENT_TRANSACTIONS_VIEW_MORE')],
-      iconColumns: [translateRaw('RECENT_TRANSACTIONS_VIEW_MORE')]
+      iconColumns: [translateRaw('RECENT_TRANSACTIONS_VIEW_MORE')],
+      reversedColumns: [translateRaw('RECENT_TRANSACTIONS_TO_AMOUNT')]
     }
   };
   return (
-    <DashboardPanel
-      heading="Recent Transactions"
-      //headingRight="Export"
-      //actionLink="/dashboard/recent-transactions"
-      className={`RecentTransactionsList ${className}`}
-    >
+    <DashboardPanel heading="Recent Transactions" className={`RecentTransactionsList ${className}`}>
       {filteredGroups.length >= 1 ? (
         <FixedSizeCollapsibleTable breakpoint={1000} {...recentTransactionsTable} />
       ) : (

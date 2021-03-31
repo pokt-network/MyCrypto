@@ -1,7 +1,8 @@
-export { AccountContext, AccountProvider } from './AccountProvider';
+export { default as useAccounts, IAccountContext } from './useAccounts';
 export {
   getBaseAsset,
   getAccountByAddressAndNetworkName,
   getAccountsByAsset,
-  getDashboardAccounts
+  getDashboardAccounts,
+  isEthereumAccount
 } from './helpers';

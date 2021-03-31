@@ -1,9 +1,11 @@
-import { IRoutePath, IRoutePaths } from '@types';
 import { translateRaw } from '@translations';
+import { IRoutePath, IRoutePaths } from '@types';
+import { filter, head, pipe, whereEq } from '@vendor';
 
 const PATHS: IRoutePath[] = [
   {
     name: 'ROOT',
+    title: translateRaw('NAVIGATION_HOME'),
     path: '/'
   },
   {
@@ -52,11 +54,6 @@ const PATHS: IRoutePath[] = [
     path: '/request'
   },
   {
-    name: 'SCREEN_LOCK_NEW',
-    title: translateRaw('SCREEN_LOCK_NEW'),
-    path: '/screen-lock/new'
-  },
-  {
     name: 'SCREEN_LOCK_LOCKED',
     title: translateRaw('SCREEN_LOCK_LOCKED'),
     path: '/screen-lock/locked'
@@ -93,7 +90,7 @@ const PATHS: IRoutePath[] = [
   },
   {
     name: 'SWAP',
-    title: translateRaw('SWAP_ROUTE_TITLE'),
+    title: translateRaw('SWAP'),
     path: '/swap'
   },
   {
@@ -145,6 +142,26 @@ const PATHS: IRoutePath[] = [
     name: 'REP_TOKEN_MIGRATION',
     title: 'REP Token Migration',
     path: '/migrate/rep'
+  },
+  {
+    name: 'AAVE_TOKEN_MIGRATION',
+    title: 'AAVE Token Migration',
+    path: '/migrate/aave'
+  },
+  {
+    name: 'ANT_TOKEN_MIGRATION',
+    title: 'ANT Token Migration',
+    path: '/migrate/ant'
+  },
+  {
+    name: 'GOLEM_TOKEN_MIGRATION',
+    title: 'GOLEM Token Migration',
+    path: '/migrate/golem'
+  },
+  {
+    name: 'FAUCET',
+    title: translateRaw('FAUCET'),
+    path: '/faucet'
   }
 ];
 
@@ -156,3 +173,7 @@ function createNavLinksFromRoutePaths(paths: IRoutePath[]) {
 }
 
 export const ROUTE_PATHS: IRoutePaths = createNavLinksFromRoutePaths(PATHS);
+
+export const getRouteConfigByPath = (path: IRoutePath['path']): IRoutePath =>
+  // @ts-expect-error: pipe and TS
+  pipe(filter(whereEq({ path: path })), head)(PATHS);

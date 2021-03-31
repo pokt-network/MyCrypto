@@ -1,9 +1,10 @@
 import React, { Component } from 'react';
-import styled from 'styled-components';
-import { Icon } from '@mycrypto/ui';
 
+import { Icon } from '@mycrypto/ui';
+import styled from 'styled-components';
+
+import { InlineMessage, Label, Spinner } from '@components';
 import { COLORS } from '@theme';
-import { InlineMessage, Spinner } from '@components';
 import { InlineMessageType } from '@types';
 import { sanitizeDecimalSeparator } from '@utils';
 
@@ -15,16 +16,6 @@ const MainWrapper = styled.div<WrapperProps>`
 interface WrapperProps {
   marginBottom?: string;
 }
-
-const Label = styled.p`
-  font-size: 18px;
-  width: 100%;
-  line-height: 1;
-  text-align: left;
-  font-weight: normal;
-  margin-bottom: 9px;
-  color: ${(props) => props.theme.text};
-`;
 
 interface CustomInputProps {
   inputError?: string | JSX.Element;
@@ -195,7 +186,7 @@ export class InputField extends Component<Props> {
 
     return (
       <MainWrapper marginBottom={marginBottom}>
-        {label && <Label>{label}</Label>}
+        {label && <Label htmlFor={name}>{label}</Label>}
         <InputWrapper>
           {textarea ? (
             <CustomTextArea

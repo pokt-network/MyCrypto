@@ -1,21 +1,21 @@
 import React, { Suspense } from 'react';
+
 import { Route, Switch, withRouter } from 'react-router-dom';
 
-import { Layout, LayoutConfig } from '@features/Layout';
-import { PageNotFound, Dashboard, ScreenLockProvider, DrawerProvider } from '@features';
-import { ScrollToTop, useScreenSize } from '@utils';
-import { useFeatureFlags } from '@services';
+import { AppLoading } from '@components';
 import { ROUTE_PATHS } from '@config';
+import { Dashboard, PageNotFound, ScreenLockProvider } from '@features';
+import { Layout, LayoutConfig } from '@features/Layout';
 import {
-  PageVisitsAnalytics,
-  LegacyRoutesHandler,
   DefaultHomeHandler,
-  PrivateRoute,
-  getAppRoutes
+  getAppRoutes,
+  LegacyRoutesHandler,
+  PageVisitsAnalytics,
+  PrivateRoute
 } from '@routing';
-import { COLORS, SPACING } from '@theme';
-
-import { AppLoading } from './AppLoading';
+import { useFeatureFlags } from '@services';
+import { SPACING } from '@theme';
+import { ScrollToTop, useScreenSize } from '@utils';
 
 const layoutConfig = (path: string, isMobile: boolean): LayoutConfig => {
   switch (path) {
@@ -23,8 +23,7 @@ const layoutConfig = (path: string, isMobile: boolean): LayoutConfig => {
       return {
         centered: false,
         fluid: true,
-        fullW: true,
-        bgColor: COLORS.WHITE
+        fullW: true
       };
     case ROUTE_PATHS.DASHBOARD.path:
       return {
@@ -36,7 +35,6 @@ const layoutConfig = (path: string, isMobile: boolean): LayoutConfig => {
         centered: true,
         fluid: true,
         fullW: true,
-        bgColor: COLORS.WHITE,
         paddingV: isMobile ? '0px' : SPACING.MD
       };
     default:
@@ -53,35 +51,38 @@ const LayoutWithLocation = withRouter(({ location, children }) => {
 });
 
 export const AppRoutes = () => {
-  const { IS_ACTIVE_FEATURE } = useFeatureFlags();
+  const { featureFlags } = useFeatureFlags();
 
   return (
     <>
       <ScrollToTop />
+      <PageVisitsAnalytics />
       <ScreenLockProvider>
-        <DrawerProvider>
-          <PageVisitsAnalytics>
-            <DefaultHomeHandler>
-              <Suspense fallback={<AppLoading />}>
+        <DefaultHomeHandler>
+          <Suspense
+            fallback={
+              <Layout>
+                <AppLoading />
+              </Layout>
+            }
+          >
+            <Switch>
+              {/* To avoid fiddling with layout we provide a complete route to home */}
+              <LayoutWithLocation>
                 <Switch>
-                  {/* To avoid fiddling with layout we provide a complete route to home */}
-                  <LayoutWithLocation>
-                    <Switch>
-                      <Route path={ROUTE_PATHS.ROOT.path} component={Dashboard} exact={true} />
-                      {getAppRoutes(IS_ACTIVE_FEATURE)
-                        .filter((route) => !route.seperateLayout)
-                        .map((config, idx) => (
-                          <PrivateRoute key={idx} {...config} />
-                        ))}
-                      <Route component={PageNotFound} />
-                    </Switch>
-                  </LayoutWithLocation>
+                  <Route path={ROUTE_PATHS.ROOT.path} component={Dashboard} exact={true} />
+                  {getAppRoutes(featureFlags)
+                    .filter((route) => !route.seperateLayout)
+                    .map((config, idx) => (
+                      <PrivateRoute key={idx} {...config} />
+                    ))}
+                  <Route component={PageNotFound} />
                 </Switch>
-              </Suspense>
-            </DefaultHomeHandler>
-          </PageVisitsAnalytics>
-          <LegacyRoutesHandler />
-        </DrawerProvider>
+              </LayoutWithLocation>
+            </Switch>
+          </Suspense>
+        </DefaultHomeHandler>
+        <LegacyRoutesHandler />
       </ScreenLockProvider>
     </>
   );

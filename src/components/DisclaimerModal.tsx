@@ -1,9 +1,9 @@
 import React from 'react';
 
-import { KB_HELP_ARTICLE } from '@config';
+import { IButton, LegacyModal, LinkApp } from '@components';
+import { getKBHelpArticle, KB_HELP_ARTICLE } from '@config';
 import translate, { translateRaw } from '@translations';
 
-import { LegacyModal, IButton, HelpLink } from '@components';
 import './DisclaimerModal.scss';
 
 interface Props {
@@ -24,9 +24,9 @@ const DisclaimerModal: React.FC<Props> = ({ isOpen, handleClose }) => {
     >
       <p>
         <b>{translateRaw('DISCLAIMER_BE_SAFE')}: </b>
-        <HelpLink article={KB_HELP_ARTICLE.SECURING_YOUR_ETH}>
+        <LinkApp href={getKBHelpArticle(KB_HELP_ARTICLE.SECURING_YOUR_ETH)}>
           {translateRaw('DISCLAIMER_HELP_LINK_DESC')}
-        </HelpLink>
+        </LinkApp>
       </p>
       <p>
         <b>{translateRaw('DISCLAIMER_ALWAYS_BACKUP_KEYS')}: </b>
@@ -60,7 +60,7 @@ const DisclaimerModal: React.FC<Props> = ({ isOpen, handleClose }) => {
       </p>
       <p>{translateRaw('DISCLAIMER_PERMISSION_DESC')}</p>
       <p>{translateRaw('DISCLAIMER_COPYRIGHT_NOTICE')}</p>
-      <b className="text-uppercase">{translateRaw('DISCLAIMER_THE_SOFTWARE_IS_PROVIDED_AS_IS"')}</b>
+      <b className="text-uppercase">{translateRaw('DISCLAIMER_THE_SOFTWARE_IS_PROVIDED_AS_IS')}</b>
     </LegacyModal>
   );
 };

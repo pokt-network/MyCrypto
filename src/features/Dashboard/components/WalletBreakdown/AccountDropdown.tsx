@@ -1,15 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Icon, Identicon } from '@mycrypto/ui';
+
+import { Identicon } from '@mycrypto/ui';
 import styled from 'styled-components';
 
-import { translateRaw } from '@translations';
-import { Checkbox } from '@components';
-import { useOnClickOutside, truncate, trimEllipsis } from '@utils';
+import { Checkbox, Icon } from '@components';
 import { getLabelByAccount, useContacts } from '@services/Store';
 import { COLORS } from '@theme';
-import { IAccount, ExtendedContact, TUuid } from '@types';
+import { translateRaw } from '@translations';
+import { ExtendedContact, IAccount, TUuid } from '@types';
+import { trimEllipsis, truncate, useOnClickOutside } from '@utils';
 
-const { BLUE_BRIGHT, BLUE_LIGHT, GREY_LIGHTEST } = COLORS;
+const { BLUE_LIGHT, GREY_LIGHTEST } = COLORS;
 
 interface AccountDropdownProps {
   className?: string;
@@ -24,7 +25,7 @@ interface SDropdownProps {
 }
 
 const Divider = styled('div')`
-  border-bottom: ${(props) => `1px solid ${props.theme.GAU.COLORS.dividerColor}`};
+  border-bottom: ${(props) => `1px solid ${props.theme.colors.GREY_ATHENS}`};
   margin: 0px 20px 15px;
 `;
 
@@ -34,7 +35,7 @@ const SDropdown = styled('div')<SDropdownProps>`
   position: relative;
   height: 48px;
   padding: 9px 15px;
-  border: ${(props) => `1px solid ${props.theme.GAU.COLORS.dividerColor}`};
+  border: ${(props) => `1px solid ${props.theme.colors.GREY_ATHENS}`};
   border-radius: 2px;
   background-color: #ffffff;
   cursor: pointer;
@@ -74,16 +75,6 @@ const LabelRow = styled.span`
   display: flex;
   justify-content: space-between;
   min-width: 20px;
-`;
-
-const IconWrapper = styled(Icon)`
-  margin: 0;
-  margin-left: 6px;
-  font-size: 0.75rem;
-
-  svg {
-    color: ${BLUE_BRIGHT};
-  }
 `;
 
 const SCheckbox = styled(Checkbox)`
@@ -175,7 +166,7 @@ const AccountDropdown = ({
     <SDropdown ref={ref as SCref} role="button" onClick={toggleOpen} isOpen={isOpen} {...props}>
       <LabelRow>
         <span>{label}</span>
-        <IconWrapper icon="navDownCaret" />
+        <Icon type="down-caret" width="10px" />
       </LabelRow>
 
       {isOpen && (

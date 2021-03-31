@@ -1,19 +1,21 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+
 import BigNumber from 'bignumber.js';
 
-import { Asset, ITxReceipt, Network, WalletId, IFormikFields, TAddress } from '@types';
-import {
-  GetBalanceResponse,
-  GetTxResponse,
-  EtherscanService,
-  GetTokenTxResponse
-} from '@services/ApiService';
-import { getAssetByUUID, StoreContext, useAssets } from '@services/Store';
-import { useFeatureFlags } from '@services';
-import { NansenService, NansenServiceEntry } from '@services/ApiService/Nansen';
 import { WALLETS_CONFIG } from '@config';
+import {
+  EtherscanService,
+  GetBalanceResponse,
+  GetTokenTxResponse,
+  GetTxResponse
+} from '@services/ApiService';
+import { NansenService, NansenServiceEntry } from '@services/ApiService/Nansen';
+import { useFeatureFlags } from '@services/FeatureFlag';
+import { getAssetByUUID, StoreContext, useAssets } from '@services/Store';
+import { Asset, IFormikFields, ITxReceipt, Network, TAddress, WalletId } from '@types';
+
 import { PTXReport } from './types';
-import { getNansenReportType, getLastTx, getBalance } from './utils';
+import { getBalance, getLastTx, getNansenReportType } from './utils';
 
 export interface IFeeAmount {
   amount: BigNumber | null;
@@ -24,7 +26,7 @@ export interface IFeeAmount {
 export interface ProtectTxState {
   stepIndex: number;
   protectTxShow: boolean;
-  protectTxEnabled: boolean;
+  enabled: boolean;
   nansenAddressReport: NansenServiceEntry | null;
   etherscanBalanceReport: GetBalanceResponse | null;
   etherscanLastTokenTxReport: GetTokenTxResponse | null;
@@ -44,7 +46,7 @@ export interface ProtectTxContext {
   readonly protectTxFeatureFlag: boolean;
   state: ProtectTxState;
   updateFormValues(values: IFormikFields): void;
-  handleTransactionReport(receiverAddress?: string): Promise<void>;
+  handleTransactionReport(receiverAddress?: string, network?: Network): Promise<void>;
   goToNextStep(): void;
   goToInitialStepOrFetchReport(receiverAddress?: string, network?: Network): void;
   showHideProtectTx(showOrHide: boolean): void;
@@ -61,7 +63,7 @@ export const protectTxProviderInitialState: ProtectTxState = {
   stepIndex: 0,
   formValues: undefined,
   protectTxShow: false,
-  protectTxEnabled: false,
+  enabled: false,
   receiverAddress: null,
   network: null,
   nansenAddressReport: null,
@@ -167,7 +169,7 @@ const ProtectTxProvider: React.FC = ({ children }) => {
 
   const goToInitialStepOrFetchReport = useCallback(
     (receiverAddress?: string, network?: Network) => {
-      if (state.protectTxEnabled || (isPTXFree && state.stepIndex > 0)) {
+      if (state.enabled || (isPTXFree && state.stepIndex > 0)) {
         setState((prevState) => ({
           ...prevState,
           cryptoScamAddressReport: null,
@@ -224,8 +226,8 @@ const ProtectTxProvider: React.FC = ({ children }) => {
 
   const setProtectTxTimeoutFunction = useCallback(
     (cb: (txReceiptCb?: (txReciept: ITxReceipt) => void) => void) => {
-      const { protectTxEnabled, isWeb3Wallet } = state;
-      if (protectTxEnabled && !isWeb3Wallet) {
+      const { enabled, isWeb3Wallet } = state;
+      if (enabled && !isWeb3Wallet) {
         protectionTxTimeoutFunction.current = cb;
       } else {
         if (cb) {
@@ -279,24 +281,23 @@ const ProtectTxProvider: React.FC = ({ children }) => {
     if (state.stepIndex === numOfSteps - 1) {
       setState((prevState) => ({
         ...prevState,
-        protectTxEnabled: true
+        enabled: true
       }));
     }
   }, [state.stepIndex]);
 
   useEffect(() => {
-    const isDisabled =
-      state.protectTxShow && !state.protectTxEnabled && state.nansenAddressReport === null;
+    const isDisabled = state.protectTxShow && !state.enabled && state.nansenAddressReport === null;
 
     setState((prevState) => ({
       ...prevState,
       mainComponentDisabled: isDisabled
     }));
-  }, [state.protectTxShow, state.stepIndex, state.nansenAddressReport, state.protectTxEnabled]);
+  }, [state.protectTxShow, state.stepIndex, state.nansenAddressReport, state.enabled]);
 
-  const { IS_ACTIVE_FEATURE } = useFeatureFlags();
+  const { isFeatureActive } = useFeatureFlags();
 
-  const protectTxFeatureFlag = IS_ACTIVE_FEATURE.PROTECT_TX;
+  const protectTxFeatureFlag = isFeatureActive('PROTECT_TX');
 
   const providerState: ProtectTxContext = {
     protectTxFeatureFlag,

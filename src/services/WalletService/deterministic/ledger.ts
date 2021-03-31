@@ -1,15 +1,18 @@
-import { Transaction as EthTx, TxData } from 'ethereumjs-tx';
-import { addHexPrefix, toBuffer } from 'ethereumjs-util';
+import { SignatureLike } from '@ethersproject/bytes';
+import {
+  serialize as serializeTransaction,
+  UnsignedTransaction
+} from '@ethersproject/transactions';
+import LedgerEth from '@ledgerhq/hw-app-eth';
 import { byContractAddress } from '@ledgerhq/hw-app-eth/erc20';
 import Transport from '@ledgerhq/hw-transport';
 import TransportU2F from '@ledgerhq/hw-transport-u2f';
-import LedgerEth from '@ledgerhq/hw-app-eth';
 import TransportWebUSB from '@ledgerhq/hw-transport-webusb';
+import { addHexPrefix, stripHexPrefix } from 'ethereumjs-util';
 
 import { translateRaw } from '@translations';
-import { getTransactionFields } from '@services/EthService';
 
-import { HardwareWallet, ChainCodeResponse } from './hardware';
+import { ChainCodeResponse, HardwareWallet } from './hardware';
 
 // Ledger throws a few types of errors
 interface U2FError {
@@ -47,19 +50,18 @@ export class LedgerWallet extends HardwareWallet {
     super(address, dPath, index);
   }
 
-  public async signRawTransaction(t: EthTx): Promise<Buffer> {
-    // Disable EIP155 in Ethereumjs-tx since it conflicts with Ledger
-    const transaction = new EthTx(t, { chain: t.getChainId(), hardfork: 'tangerineWhistle' });
-    const txFields = getTransactionFields(transaction);
-    transaction.v = toBuffer(transaction.getChainId());
-    transaction.r = toBuffer(0);
-    transaction.s = toBuffer(0);
+  public async signRawTransaction(t: UnsignedTransaction): Promise<Buffer> {
+    const { to, chainId } = t;
+
+    if (!chainId) {
+      throw Error('Missing chainId on tx');
+    }
 
     try {
       const ethApp = await makeApp();
 
-      if (transaction.getChainId() === 1) {
-        const tokenInfo = byContractAddress(transaction.to.toString('hex'));
+      if (chainId === 1 && to) {
+        const tokenInfo = byContractAddress(to);
         if (tokenInfo) {
           await ethApp.provideERC20TokenInformation(tokenInfo);
         }
@@ -67,34 +69,18 @@ export class LedgerWallet extends HardwareWallet {
 
       const result = await ethApp.signTransaction(
         this.getPath(),
-        transaction.serialize().toString('hex')
+        stripHexPrefix(serializeTransaction(t))
       );
 
-      let v = result.v;
-      if (transaction.getChainId() > 0) {
-        // EIP155 support. check/recalc signature v value.
-        // Please see https://github.com/LedgerHQ/blue-app-eth/commit/8260268b0214810872dabd154b476f5bb859aac0
-        // currently, ledger returns only 1-byte truncated signatur_v
-        const rv = parseInt(v, 16);
-        let cv = transaction.getChainId() * 2 + 35; // calculated signature v, without signature bit.
-        /* tslint:disable no-bitwise */
-        if (rv !== cv && (rv & cv) !== rv) {
-          // (rv !== cv) : for v is truncated byte case
-          // (rv & cv): make cv to truncated byte
-          // (rv & cv) !== rv: signature v bit needed
-          cv += 1; // add signature v bit.
-        }
-        v = cv.toString(16);
-      }
-
-      const txToSerialize: TxData = {
-        ...txFields,
-        v: addHexPrefix(v),
+      const signature: SignatureLike = {
+        v: parseInt(result.v, 16),
         r: addHexPrefix(result.r),
         s: addHexPrefix(result.s)
       };
 
-      return new EthTx(txToSerialize, { chain: txFields.chainId }).serialize();
+      const serializedTx = serializeTransaction(t, signature);
+
+      return Buffer.from(stripHexPrefix(serializedTx), 'hex');
     } catch (err) {
       throw Error(err + '. Check to make sure contract data is on');
     }
@@ -109,7 +95,7 @@ export class LedgerWallet extends HardwareWallet {
       const msgHex = Buffer.from(msg).toString('hex');
       const ethApp = await makeApp();
       const signed = await ethApp.signPersonalMessage(this.getPath(), msgHex);
-      // @ts-ignore
+      // @ts-expect-error: There is a type mismatch between Signature and how we use it. @todo: resolve conflicts.
       const combined = addHexPrefix(signed.r + signed.s + signed.v.toString(16));
       return combined;
     } catch (err) {
@@ -157,11 +143,14 @@ async function makeApp() {
   return new LedgerEth(transport);
 }
 
-const isU2FError = (err: LedgerError): err is U2FError => !!err && !!(err as U2FError).metaData;
-const isStringError = (err: LedgerError): err is string => typeof err === 'string';
-const isErrorWithId = (err: LedgerError): err is ErrorWithId =>
-  err.hasOwnProperty('id') && err.hasOwnProperty('message');
-function ledgerErrToMessage(err: LedgerError) {
+export const isU2FError = (err: LedgerError): err is U2FError =>
+  !!err && !!(err as U2FError).metaData;
+export const isStringError = (err: LedgerError): err is string => typeof err === 'string';
+export const isErrorWithId = (err: LedgerError): err is ErrorWithId =>
+  Object.prototype.hasOwnProperty.call(err, 'id') &&
+  Object.prototype.hasOwnProperty.call(err, 'message');
+
+export const ledgerErrToMessage = (err: LedgerError) => {
   // https://developers.yubico.com/U2F/Libraries/Client_error_codes.html
   if (isU2FError(err)) {
     // Timeout
@@ -171,6 +160,8 @@ function ledgerErrToMessage(err: LedgerError) {
 
     return err.metaData.type;
   }
+
+  console.error(err);
 
   if (isStringError(err)) {
     // Wrong app logged into
@@ -194,4 +185,4 @@ function ledgerErrToMessage(err: LedgerError) {
 
   // Other
   return err.toString();
-}
+};

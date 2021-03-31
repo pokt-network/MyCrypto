@@ -1,23 +1,21 @@
 import {
-  saveSettingsCheck,
-  printPaperWalletCheck,
+  GetHardwareWalletNotification,
+  OnboardingPleaseUnderstandNotification,
+  OnboardingResponsibleNotification,
+  SaveDashboardNotification,
+  WalletAddedNotification,
+  WalletCreatedNotification,
+  WalletNotAddedNotification,
+  WalletsAddedNotification,
+  WalletsNotAddedNotification
+} from './components';
+import {
   getHardwareWalletCheck,
   onboardingPleaseUnderstandCheck,
-  onboardingResponsibleCheck
+  onboardingResponsibleCheck,
+  saveSettingsCheck
 } from './helpers';
 import { NotificationsConfigsProps } from './types';
-import {
-  WalletCreatedNotification,
-  WalletAddedNotification,
-  WalletsAddedNotification,
-  SaveDashboardNotification,
-  PrintPaperWalletNotification,
-  GetHardwareWalletNotification,
-  WalletNotAddedNotification,
-  WalletsNotAddedNotification,
-  OnboardingPleaseUnderstandNotification,
-  OnboardingResponsibleNotification
-} from './components';
 
 export const NotificationTemplates = {
   walletCreated: 'wallet-created',
@@ -26,7 +24,6 @@ export const NotificationTemplates = {
   walletNotAdded: 'wallet-not-added',
   walletsNotAdded: 'wallets-not-added',
   saveSettings: 'save-settings',
-  printPaperWallet: 'print-paper-wallet',
   getHardwareWallet: 'get-hardware-wallet',
   onboardingPleaseUnderstand: 'onboarding-please-understand',
   onboardingResponsible: 'onboarding-responsible'
@@ -68,12 +65,6 @@ export const notificationsConfigs: NotificationsConfigsProps = {
     layout: SaveDashboardNotification,
     repeatInterval: 86400,
     condition: saveSettingsCheck
-  },
-  [NotificationTemplates.printPaperWallet]: {
-    analyticsEvent: 'Print Your Paper Wallet',
-    layout: PrintPaperWalletNotification,
-    repeatInterval: 86400,
-    condition: printPaperWalletCheck
   },
   [NotificationTemplates.getHardwareWallet]: {
     analyticsEvent: 'Get a Hardware Wallet',

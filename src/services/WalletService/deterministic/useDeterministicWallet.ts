@@ -1,24 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
 import { useReducer } from 'reinspect';
-import { uniqBy, identity, prop, pipe } from '@vendor';
 
-import { Network, DPathFormat, ExtendedAsset } from '@types';
+import { DPathFormat, ExtendedAsset, Network } from '@types';
+import { identity, pipe, prop, uniqBy } from '@vendor';
 
-import { Wallet, processFinishedAccounts } from '..';
+import { processFinishedAccounts, Wallet } from '..';
 import { default as DeterministicWalletService } from './DeterministicWalletService';
-import DeterministicWalletReducer, { initialState, DWActionTypes } from './reducer';
-import {
-  IUseDeterministicWallet,
-  IDeterministicWalletService,
-  DWAccountDisplay,
-  ExtendedDPath
-} from './types';
 import { findFinishedZeroBalanceAccounts } from './helpers';
-
-interface MnemonicPhraseInputs {
-  phrase: string;
-  pass: string;
-}
+import DeterministicWalletReducer, { DWActionTypes, initialState } from './reducer';
+import {
+  DWAccountDisplay,
+  ExtendedDPath,
+  IDeterministicWalletService,
+  IUseDeterministicWallet
+} from './types';
 
 const useDeterministicWallet = (
   dpaths: ExtendedDPath[],
@@ -35,7 +31,7 @@ const useDeterministicWallet = (
   const [service, setService] = useState<IDeterministicWalletService | undefined>(); // Keep a reference to the session in order to send
   const [assetToQuery, setAssetToQuery] = useState(undefined as ExtendedAsset | undefined);
   const [network, setNetwork] = useState(undefined as Network | undefined);
-  const [mnemonicInputs, setMnemonicInputs] = useState({} as MnemonicPhraseInputs);
+
   // Initialize DeterministicWallet and get the uri.
   useEffect(() => {
     if (!shouldInit || !assetToQuery || !network) return;
@@ -50,10 +46,13 @@ const useDeterministicWallet = (
           type: DWActionTypes.CONNECTION_SUCCESS,
           payload: { session, asset }
         }),
-      handleReject: () =>
+      handleReject: (err: string) =>
         dispatch({
           type: DWActionTypes.CONNECTION_FAILURE,
-          error: { code: DeterministicWalletReducer.errorCodes.SESSION_CONNECTION_FAILED }
+          error: {
+            code: DeterministicWalletReducer.errorCodes.SESSION_CONNECTION_FAILED,
+            message: err
+          }
         }),
       handleAccountsSuccess: () =>
         dispatch({
@@ -71,10 +70,10 @@ const useDeterministicWallet = (
           payload: { accounts, asset }
         });
       },
-      handleAccountsError: () =>
+      handleAccountsError: (err: string) =>
         dispatch({
           type: DWActionTypes.GET_ADDRESSES_FAILURE,
-          error: { code: DeterministicWalletReducer.errorCodes.GET_ACCOUNTS_FAILED }
+          error: { code: DeterministicWalletReducer.errorCodes.GET_ACCOUNTS_FAILED, message: err }
         }),
       handleComplete: () =>
         dispatch({
@@ -82,7 +81,8 @@ const useDeterministicWallet = (
         })
     });
 
-    dwService.init(walletId, assetToQuery, mnemonicInputs.phrase, mnemonicInputs.pass);
+    // @todo: This currently expects the default dpath for the network to always be first in the arr
+    dwService.init({ walletId, asset: assetToQuery, dpath: dpaths[0] });
     setService(dwService);
   }, [shouldInit]);
 
@@ -130,15 +130,7 @@ const useDeterministicWallet = (
     return;
   }, [state.finishedAccounts, state.completed]);
 
-  const requestConnection = (
-    networkToUse: Network,
-    asset: ExtendedAsset,
-    mnemonicPhrase?: string,
-    pass?: string
-  ) => {
-    if (mnemonicPhrase) {
-      setMnemonicInputs({ phrase: mnemonicPhrase, pass: pass! });
-    }
+  const requestConnection = (networkToUse: Network, asset: ExtendedAsset) => {
     setNetwork(networkToUse);
     setAssetToQuery(asset);
     setShouldInit(true);

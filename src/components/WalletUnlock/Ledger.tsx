@@ -1,30 +1,27 @@
 import React, { useState } from 'react';
-import uniqBy from 'ramda/src/uniqBy';
-import prop from 'ramda/src/prop';
 
-import { MOONPAY_ASSET_UUIDS, IS_ELECTRON } from '@utils';
-import { FormData, WalletId, ExtendedAsset } from '@types';
-import translate, { translateRaw, Trans } from '@translations';
-import { NewTabLink, Spinner, Button, RouterLink } from '@components';
+import { LinkApp } from '@components';
+import HardwareWalletUI from '@components/WalletUnlock/Hardware';
 import {
-  EXT_URLS,
-  LEDGER_DERIVATION_PATHS,
-  DEFAULT_NUM_OF_ACCOUNTS_TO_SCAN,
   DEFAULT_GAP_TO_SCAN_FOR,
-  DPathsList
+  DEFAULT_NUM_OF_ACCOUNTS_TO_SCAN,
+  DPathsList,
+  LEDGER_DERIVATION_PATHS
 } from '@config';
 import {
-  getNetworkById,
   getAssetByUUID,
-  useDeterministicWallet,
   getDPaths,
+  getNetworkById,
   useAssets,
+  useDeterministicWallet,
   useNetworks
 } from '@services';
+import { Trans, translateRaw } from '@translations';
+import { ExtendedAsset, FormData, WalletId } from '@types';
+import { prop, uniqBy } from '@vendor';
 
-import ledgerIcon from '@assets/images/icn-ledger-nano-large.svg';
-import UnsupportedNetwork from './UnsupportedNetwork';
 import DeterministicWallet from './DeterministicWallet';
+import UnsupportedNetwork from './UnsupportedNetwork';
 
 interface OwnProps {
   formData: FormData;
@@ -37,6 +34,8 @@ const LedgerDecrypt = ({ formData, onUnlock }: OwnProps) => {
   const { networks } = useNetworks();
   const { assets } = useAssets();
   const network = getNetworkById(formData.network, networks);
+
+  // @todo: LEDGER_DERIVATION_PATHS are not available on all networks. Fix this to only display DPaths relevant to the specified network.
   const dpaths = uniqBy(prop('value'), [
     ...getDPaths([network], WalletId.LEDGER_NANO_S),
     ...LEDGER_DERIVATION_PATHS
@@ -58,9 +57,6 @@ const LedgerDecrypt = ({ formData, onUnlock }: OwnProps) => {
     generateFreshAddress
   } = useDeterministicWallet(extendedDPaths, WalletId.LEDGER_NANO_S_NEW, DEFAULT_GAP_TO_SCAN_FOR);
 
-  // @todo -> Figure out which assets to display in dropdown. Dropdown is heavy with 900+ assets in it. Loads slow af.
-  const filteredAssets = assets.filter(({ uuid }) => MOONPAY_ASSET_UUIDS.includes(uuid)); // @todo - fix this.
-
   const handleAssetUpdate = (newAsset: ExtendedAsset) => {
     setAssetToUse(newAsset);
     updateAsset(newAsset);
@@ -72,17 +68,21 @@ const LedgerDecrypt = ({ formData, onUnlock }: OwnProps) => {
 
   if (!network) {
     // @todo: make this better.
-    return <UnsupportedNetwork walletType={translateRaw('x_Ledger')} network={network} />;
+    return <UnsupportedNetwork walletType={translateRaw('X_LEDGER')} network={network} />;
   }
 
-  if (!IS_ELECTRON && window.location.protocol !== 'https:') {
+  if (window.location.protocol !== 'https:') {
     return (
       <div className="Panel">
         <div className="alert alert-danger">
           <Trans
             id="UNLOCKING_LEDGER_ONLY_POSSIBLE_ON_OVER_HTTPS"
             variables={{
-              $newTabLink: () => <NewTabLink href="https://mycrypto.com">MyCrypto.com</NewTabLink>
+              $link: () => (
+                <LinkApp href="https://mycrypto.com" isExternal={true}>
+                  MyCrypto.com
+                </LinkApp>
+              )
             }}
           />
         </div>
@@ -95,7 +95,7 @@ const LedgerDecrypt = ({ formData, onUnlock }: OwnProps) => {
       <DeterministicWallet
         state={state}
         defaultDPath={defaultDPath}
-        assets={filteredAssets}
+        assets={assets}
         assetToUse={assetToUse}
         network={network}
         updateAsset={updateAsset}
@@ -107,52 +107,12 @@ const LedgerDecrypt = ({ formData, onUnlock }: OwnProps) => {
     );
   } else {
     return (
-      <div className="Panel">
-        <div className="Panel-title">
-          {translate('UNLOCK_WALLET')}{' '}
-          {translateRaw('YOUR_WALLET_TYPE', { $walletType: translateRaw('X_LEDGER') })}
-        </div>
-        <div className="LedgerPanel-description-content">
-          <div className="LedgerPanel-description">
-            {translate('LEDGER_TIP')}
-            <div className="LedgerPanel-image">
-              <img src={ledgerIcon} />
-            </div>
-            {/* <div className={`LedgerDecrypt-error alert alert-danger ${showErr}`}>
-							{error || '-'}
-						</div> */}
-            {state.isConnecting ? (
-              <div className="LedgerPanel-loading">
-                <Spinner /> {translate('WALLET_UNLOCKING')}
-              </div>
-            ) : (
-              <Button
-                className="LedgerPanel-description-button"
-                onClick={() => handleNullConnect()}
-                disabled={state.isConnecting}
-              >
-                {translate('ADD_LEDGER_SCAN')}
-              </Button>
-            )}
-          </div>
-          <div className="LedgerPanel-footer">
-            {translate('LEDGER_REFERRAL_2', { $url: EXT_URLS.LEDGER_REFERRAL.url })}
-            <br />
-            <Trans
-              id="USE_OLD_INTERFACE"
-              variables={{
-                $link: () => (
-                  <RouterLink to="/add-account/ledger_nano_s">
-                    {translateRaw('TRY_OLD_INTERFACE')}
-                  </RouterLink>
-                )
-              }}
-            />
-            {/*<br />
-						{translate('LEDGER_HELP_LINK')} */}
-          </div>
-        </div>
-      </div>
+      <HardwareWalletUI
+        network={network}
+        state={state}
+        handleNullConnect={handleNullConnect}
+        walletId={WalletId.LEDGER_NANO_S_NEW}
+      />
     );
   }
 };

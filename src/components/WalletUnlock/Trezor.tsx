@@ -1,13 +1,13 @@
 import React, { PureComponent } from 'react';
+
 import { Button } from '@mycrypto/ui';
 
 import ConnectTrezor from '@assets/images/icn-connect-trezor-new.svg';
+import { Box, BusyBottom, Heading, Spinner } from '@components';
+import { getDPath, getDPaths, INetworkContext, useNetworks } from '@services';
+import { ChainCodeResponse, WalletFactory } from '@services/WalletService';
 import translate, { translateRaw } from '@translations';
-import { Spinner } from '@components';
-import { WalletId, FormData } from '@types';
-import { getDPath, getDPaths, useNetworks, INetworkContext } from '@services';
-import { WalletFactory, ChainCodeResponse } from '@services/WalletService';
-import { EXT_URLS } from '@config';
+import { BusyBottomConfig, DPath, FormData, TAddress, WalletId } from '@types';
 import { withHook } from '@utils';
 
 import DeterministicWallets from './DeterministicWallets';
@@ -29,7 +29,7 @@ interface State {
   isLoading: boolean;
 }
 
-const WalletService = WalletFactory(WalletId.TREZOR);
+const WalletService = WalletFactory[WalletId.TREZOR];
 
 class TrezorDecryptClass extends PureComponent<OwnProps & INetworkContext, State> {
   public state: State = {
@@ -68,11 +68,11 @@ class TrezorDecryptClass extends PureComponent<OwnProps & INetworkContext, State
       );
     } else {
       return (
-        <div className="Panel">
-          <div className="Panel-title">
+        <Box p="2.5em">
+          <Heading fontSize="32px" textAlign="center" fontWeight="bold">
             {translate('UNLOCK_WALLET')}{' '}
             {translateRaw('YOUR_WALLET_TYPE', { $walletType: translateRaw('X_TREZOR') })}
-          </div>
+          </Heading>
           <div className="TrezorDecrypt">
             <div className="TrezorDecrypt-description">
               {translate('TREZOR_TIP')}
@@ -98,11 +98,10 @@ class TrezorDecryptClass extends PureComponent<OwnProps & INetworkContext, State
               </Button>
             )}
             <div className="TrezorDecrypt-footer">
-              {translate('ORDER_TREZOR', { $url: EXT_URLS.TREZOR_REFERRAL.url })} <br />
-              {translate('HOWTO_TREZOR')}
+              <BusyBottom type={BusyBottomConfig.TREZOR} />
             </div>
           </div>
-        </div>
+        </Box>
       );
     }
   }
@@ -139,8 +138,8 @@ class TrezorDecryptClass extends PureComponent<OwnProps & INetworkContext, State
     this.reset();
   };
 
-  private handleUnlock = (address: string, index: number) => {
-    this.props.onUnlock(WalletService.init(address, this.state.dPath.value, index));
+  private handleUnlock = (address: TAddress, index: number) => {
+    this.props.onUnlock(WalletService.init({ address, dPath: this.state.dPath.value, index }));
   };
 
   private handleNullConnect = (): void => {

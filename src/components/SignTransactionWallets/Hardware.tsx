@@ -1,19 +1,42 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
-import { IAccount as IIAccount, ITxObject, ISignedTx, IPendingTxReceipt } from '@types';
+import styled from 'styled-components';
+
+import { Body, BusyBottom, Heading, Icon, InlineMessage, TIcon } from '@components';
 import { WALLETS_CONFIG } from '@config';
-import { makeTransaction } from '@services/EthService';
-import { WalletFactory, HardwareWallet } from '@services/WalletService';
-import { InlineMessage } from '@components';
+import { HardwareWallet, WalletFactory } from '@services/WalletService';
+import { FONT_SIZE, SPACING } from '@theme';
 import translate, { translateRaw } from '@translations';
-import { useInterval } from '@utils';
-
-import './Hardware.scss';
+import {
+  BusyBottomConfig,
+  HardwareWalletId,
+  HardwareWalletService,
+  IAccount,
+  IPendingTxReceipt,
+  ISignedTx,
+  ITxObject,
+  WalletId
+} from '@types';
+import { makeTransaction, useInterval } from '@utils';
 
 export interface IDestructuredDPath {
   dpath: string;
   index: number;
 }
+
+const SFooter = styled.div`
+  width: 100%;
+`;
+
+const SImgContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  margin: 3em;
+`;
+
+const ErrorMessageContainer = styled.div`
+  margin: 2em;
+`;
 
 export const splitDPath = (fullDPath: string): IDestructuredDPath => {
   /*
@@ -28,15 +51,15 @@ export const splitDPath = (fullDPath: string): IDestructuredDPath => {
 };
 
 export interface IProps {
-  walletIcon: any;
+  walletIconType: TIcon;
   signerDescription: string;
-  senderAccount: IIAccount;
+  senderAccount: IAccount;
   rawTransaction: ITxObject;
   onSuccess(receipt: IPendingTxReceipt | ISignedTx): void;
 }
 
 export default function HardwareSignTransaction({
-  walletIcon,
+  walletIconType,
   signerDescription,
   senderAccount,
   rawTransaction,
@@ -47,7 +70,9 @@ export default function HardwareSignTransaction({
   const [isRequestingTxSignature, setIsRequestingTxSignature] = useState(false);
   const [isTxSignatureRequestDenied, setIsTxSignatureRequestDenied] = useState(false);
   const [wallet, setWallet] = useState<HardwareWallet | undefined>();
-  const SigningWalletService = WalletFactory(senderAccount.wallet);
+  const SigningWalletService = WalletFactory[
+    senderAccount.wallet as HardwareWalletId
+  ] as HardwareWalletService;
 
   useInterval(
     async () => {
@@ -55,11 +80,11 @@ export default function HardwareSignTransaction({
       if (!isWalletUnlocked && !isRequestingWalletUnlock) {
         setIsRequestingWalletUnlock(true);
         const dpathObject = splitDPath(senderAccount.dPath);
-        const walletObject = SigningWalletService.init(
-          senderAccount.address,
-          dpathObject.dpath,
-          dpathObject.index
-        );
+        const walletObject = SigningWalletService.init({
+          address: senderAccount.address,
+          dPath: dpathObject.dpath,
+          index: dpathObject.index
+        });
         try {
           await SigningWalletService.getChainCode(dpathObject.dpath);
           setIsRequestingWalletUnlock(false);
@@ -87,40 +112,75 @@ export default function HardwareSignTransaction({
           setIsTxSignatureRequestDenied(false);
           onSuccess(data);
         })
-        .catch((_: any) => {
+        .catch(() => {
           // User denies tx, or tx times out.
           setIsTxSignatureRequestDenied(true);
           setIsRequestingTxSignature(false);
         });
     }
   }, [wallet, isRequestingTxSignature]);
+
+  const walletType = (() => {
+    switch (senderAccount.wallet) {
+      case WalletId.TREZOR:
+      case WalletId.TREZOR_NEW:
+        return BusyBottomConfig.TREZOR;
+
+      default:
+        return BusyBottomConfig.LEDGER;
+    }
+  })();
+
   return (
-    <>
-      <div className="SignTransactionHardware-title">
-        {translate('SIGN_TX_TITLE', {
-          $walletName: WALLETS_CONFIG[senderAccount.wallet].name || 'Hardware Wallet'
-        })}
-      </div>
-      <div className="SignTransactionHardware-instructions">{signerDescription}</div>
-      <div className="SignTransactionHardware-content">
-        <div className="SignTransactionHardware-img">
-          <img src={walletIcon} />
-        </div>
-        <div className="SignTransactionHardware-description">
-          {translateRaw('SIGN_TX_EXPLANATION')}
-          {isTxSignatureRequestDenied && (
-            <InlineMessage value={translate('SIGN_TX_HARDWARE_FAILED_1')} />
-          )}
-        </div>
-        <div className="SignTransactionHardware-footer">
-          <div className="SignTransactionHardware-help">
-            {translate(senderAccount.wallet + '_HELP')}
-          </div>
-          <div className="SignTransactionHardware-referal">
-            {translate(senderAccount.wallet + '_REFERRAL')}
-          </div>
-        </div>
-      </div>
-    </>
+    <SignTxHardwareUI
+      walletIconType={walletIconType}
+      signerDescription={signerDescription}
+      isTxSignatureRequestDenied={isTxSignatureRequestDenied}
+      wallet={walletType}
+      senderAccount={senderAccount}
+    />
   );
 }
+
+interface UIProps {
+  walletIconType: TIcon;
+  signerDescription: string;
+  isTxSignatureRequestDenied: boolean;
+  wallet: BusyBottomConfig;
+  senderAccount: IAccount;
+}
+
+export const SignTxHardwareUI = ({
+  walletIconType,
+  signerDescription,
+  isTxSignatureRequestDenied,
+  wallet,
+  senderAccount
+}: UIProps) => (
+  <>
+    <Heading textAlign="center" fontWeight="bold" fontSize={FONT_SIZE.XXL}>
+      {translate('SIGN_TX_TITLE', {
+        $walletName: WALLETS_CONFIG[senderAccount.wallet].name
+      })}
+    </Heading>
+    <Body fontSize={FONT_SIZE.MD} marginTop={SPACING.MD}>
+      {signerDescription}
+    </Body>
+    <div>
+      <SImgContainer>
+        <Icon type={walletIconType} />
+      </SImgContainer>
+      <Body textAlign="center">
+        {isTxSignatureRequestDenied && (
+          <ErrorMessageContainer>
+            <InlineMessage value={translate('SIGN_TX_HARDWARE_FAILED_1')} />
+          </ErrorMessageContainer>
+        )}
+        {translateRaw('SIGN_TX_EXPLANATION')}
+      </Body>
+      <SFooter>
+        <BusyBottom type={wallet} />
+      </SFooter>
+    </div>
+  </>
+);

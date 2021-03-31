@@ -1,12 +1,10 @@
 import React from 'react';
-import { simpleRender, fireEvent, waitFor } from 'test-utils';
-import { fNetwork } from '@fixtures';
 
-import { DataContext } from '@services';
-import { ExtendedContact, TUuid, IReceiverAddress } from '@types';
-import { contacts } from '@database/seed/contacts';
+import { fireEvent, simpleRender, waitFor } from 'test-utils';
 
 import GeneralLookupField from '@components/GeneralLookupField';
+import { fContacts, fNetwork } from '@fixtures';
+import { ExtendedContact, IReceiverAddress, TUuid } from '@types';
 
 interface FormValues {
   data: {
@@ -46,25 +44,16 @@ function getComponent(
   };
 
   return simpleRender(
-    <DataContext.Provider
-      value={
-        ({
-          assets: [{ uuid: fNetwork.baseAsset }],
-          createActions: jest.fn()
-        } as unknown) as any
-      }
-    >
-      <GeneralLookupField
-        {...props}
-        value={output.data.address}
-        setFieldValue={(_, value) => setFormValue(value)}
-      />
-    </DataContext.Provider>
+    <GeneralLookupField
+      {...props}
+      value={output.data.address}
+      setFieldValue={(_, value) => setFormValue(value)}
+    />
   );
 }
 
 const enter = { key: 'Enter', keyCode: 13 };
-const mockMappedContacts: ExtendedContact[] = Object.entries(contacts).map(([key, value]) => ({
+const mockMappedContacts: ExtendedContact[] = Object.entries(fContacts).map(([key, value]) => ({
   ...value,
   uuid: key as TUuid
 }));

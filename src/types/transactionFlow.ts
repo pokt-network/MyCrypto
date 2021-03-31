@@ -1,16 +1,18 @@
 import { Brand } from 'utility-types';
 
+import { IMembershipConfig } from '@features/PurchaseMembership/config';
+import { IAssetPair } from '@features/SwapAssets/types';
 import {
   Asset,
-  Network as INetwork,
   GasEstimates,
+  Network as INetwork,
+  ITokenMigrationConfig,
   ITxReceipt,
-  WalletId,
   StoreAccount,
-  TAddress
+  TAddress,
+  TxParcel,
+  WalletId
 } from '@types';
-import { IZapConfig } from '@features/DeFiZap/config';
-import { IMembershipConfig } from '@features/PurchaseMembership/config';
 
 export type ISignedTx = string;
 
@@ -85,8 +87,8 @@ export interface IStepComponentProps extends IDefaultStepComponentProps {
   txReceipt?: ITxReceipt;
   signedTx?: string;
   txType?: ITxType;
-  zapSelected?: IZapConfig;
-  membershipSelected?: IMembershipConfig;
+  txQueryType?: TxQueryTypes;
+  error?: string;
   children?: never;
 }
 
@@ -94,10 +96,9 @@ export interface ITxReceiptStepProps {
   txConfig: ITxConfig;
   txReceipt?: ITxReceipt;
   signedTx?: string;
-  zapSelected?: IZapConfig;
-  membershipSelected?: IMembershipConfig;
+  txQueryType?: TxQueryTypes;
   children?: never;
-  completeButtonText?: string;
+  completeButton?: string | (() => JSX.Element);
   onComplete(data: IFormikFields | ITxReceipt | ISignedTx | null): void;
   resetFlow(): void;
 }
@@ -142,7 +143,11 @@ export enum ITxType {
   DEPLOY_CONTRACT = 'DEPLOY_CONTRACT',
   PURCHASE_MEMBERSHIP = 'PURCHASE_MEMBERSHIP',
   APPROVAL = 'APPROVAL',
-  REP_TOKEN_MIGRATION = 'REP_TOKEN_MIGRATION'
+  REP_TOKEN_MIGRATION = 'REP_TOKEN_MIGRATION',
+  AAVE_TOKEN_MIGRATION = 'AAVE_TOKEN_MIGRATION',
+  ANT_TOKEN_MIGRATION = 'ANT_TOKEN_MIGRATION',
+  GOLEM_TOKEN_MIGRATION = 'GOLEM_TOKEN_MIGRATION',
+  FAUCET = 'FAUCET'
 }
 
 export interface ISimpleTxForm {
@@ -160,3 +165,19 @@ export interface ISimpleTxFormFull extends ISimpleTxForm {
 }
 
 export type TStepAction = (payload: any, after: () => void) => void;
+
+export enum TxQueryTypes {
+  SPEEDUP = 'speedup',
+  CANCEL = 'cancel',
+  DEFAULT = 'default'
+}
+
+export type IFlowConfig = ITokenMigrationConfig | IMembershipConfig | IAssetPair;
+
+export interface ITxMultiConfirmProps {
+  currentTxIdx: number;
+  transactions: TxParcel[];
+  flowConfig: IFlowConfig;
+  account: StoreAccount;
+  onComplete?(): void;
+}

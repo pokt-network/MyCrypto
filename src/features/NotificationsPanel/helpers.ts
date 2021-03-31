@@ -1,14 +1,8 @@
-import moment from 'moment';
-
 import { ExtendedNotification } from '@types';
+import { getDayDifference } from '@utils';
 
 export const saveSettingsCheck = (): boolean => {
   // @todo: Check if all additional conditions are met for displaying the "save settings" notification
-  return true;
-};
-
-export const printPaperWalletCheck = (): boolean => {
-  // @todo: Check if all additional conditions are met for displaying the "print paper wallet" notification
   return true;
 };
 
@@ -21,22 +15,14 @@ export const onboardingPleaseUnderstandCheck = (notification: ExtendedNotificati
   if (!notification.templateData) {
     return false;
   }
-  return (
-    moment
-      .duration(
-        moment(new Date()).diff(moment(notification.templateData.previousNotificationClosedDate))
-      )
-      .asDays() > 1
-  );
+
+  return getDayDifference(notification.templateData.previousNotificationClosedDate) > 1;
 };
 
 export const onboardingResponsibleCheck = (notification: ExtendedNotification): boolean => {
   if (!notification.templateData) {
     return false;
   }
-  return (
-    moment
-      .duration(moment(new Date()).diff(moment(notification.templateData.firstDashboardVisitDate)))
-      .asDays() > 1
-  );
+
+  return getDayDifference(notification.templateData.firstDashboardVisitDate) > 1;
 };

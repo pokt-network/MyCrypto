@@ -1,13 +1,13 @@
-import sortBy from 'lodash/sortBy';
-import cloneDeep from 'lodash/cloneDeep';
 import { bufferToHex } from 'ethereumjs-util';
+import cloneDeep from 'lodash/cloneDeep';
+import sortBy from 'lodash/sortBy';
 
-import { StoreAccount, NetworkId, ITxConfig, ITxObject } from '@types';
-import { WALLET_STEPS } from '@components';
-import { getAssetByUUID, hexToString, hexWeiToString, inputValueToHex } from '@services';
+import { getAssetByUUID } from '@services';
 import { AbiFunction } from '@services/EthService/contracts/ABIFunction';
+import { ITxConfig, ITxObject, StoreAccount } from '@types';
+import { hexToString, hexWeiToString, inputValueToHex } from '@utils';
 
-import { StateMutabilityType, ABIItem, ABIItemType } from './types';
+import { ABIItem, ABIItemType, StateMutabilityType } from './types';
 
 export const isReadOperation = (abiFunction: ABIItem): boolean => {
   const { stateMutability } = abiFunction;
@@ -79,9 +79,6 @@ export const getFunctionsFromABI = (pAbi: ABIItem[]) =>
     pAbi.filter((x) => x.type === ABIItemType.FUNCTION),
     (item) => item.name.toLowerCase()
   ).map((x) => Object.assign(x, { label: x.name }));
-
-export const getAccountsInNetwork = (accounts: StoreAccount[], networkId: NetworkId) =>
-  accounts.filter((acc) => acc.networkId === networkId && WALLET_STEPS[acc.wallet]);
 
 export const makeContractInteractionTxConfig = (
   rawTransaction: ITxObject,

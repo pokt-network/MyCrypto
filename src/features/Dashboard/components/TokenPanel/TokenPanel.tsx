@@ -1,21 +1,23 @@
-import React, { useState, useContext } from 'react';
+import React, { useContext, useState } from 'react';
 
-import { StoreContext, SettingsContext, useRates } from '@services';
+import { StoreContext, useRates, useSettings } from '@services';
+import { isNotExcludedAsset } from '@services/Store/helpers';
+import { isScanning as isScanningSelector, scanTokens, useDispatch, useSelector } from '@store';
 import { ExtendedAsset, StoreAsset } from '@types';
 
-import { TokenList } from './TokenList';
-import { TokenDetails } from './TokenDetails';
 import { AddToken } from './AddToken';
-import { isNotExcludedAsset } from '@services/Store/helpers';
+import { TokenDetails } from './TokenDetails';
+import { TokenList } from './TokenList';
 
 export function TokenPanel() {
-  const { totals, currentAccounts, scanTokens } = useContext(StoreContext);
-  const { settings } = useContext(SettingsContext);
+  const { totals, currentAccounts } = useContext(StoreContext);
+  const isScanning = useSelector(isScanningSelector);
+  const dispatch = useDispatch();
+  const { settings } = useSettings();
   const { getAssetRate } = useRates();
   const [showDetailsView, setShowDetailsView] = useState(false);
   const [showAddToken, setShowAddToken] = useState(false);
   const [currentToken, setCurrentToken] = useState<StoreAsset>();
-  const [isScanning, setIsScanning] = useState(false);
   const allTokens = totals(currentAccounts)
     .reduce((acc, a) => {
       if (a.contractAddress) {
@@ -25,14 +27,8 @@ export function TokenPanel() {
     }, [] as StoreAsset[])
     .filter(isNotExcludedAsset(settings.excludedAssets));
 
-  const handleScanTokens = async (asset?: ExtendedAsset) => {
-    try {
-      setIsScanning(true);
-      await scanTokens(asset);
-      setIsScanning(false);
-    } catch (e) {
-      setIsScanning(false);
-    }
+  const handleScanTokens = (asset?: ExtendedAsset) => {
+    dispatch(scanTokens({ assets: asset && [asset] }));
   };
 
   return showDetailsView && currentToken ? (

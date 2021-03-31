@@ -1,15 +1,16 @@
-import React, { FC, useCallback, useState } from 'react';
-import { withRouter, RouteComponentProps, Link } from 'react-router-dom';
-import styled from 'styled-components';
-import { Button } from '@mycrypto/ui';
+import React, { useContext, useEffect, useState } from 'react';
 
-import translate, { translateRaw } from '@translations';
-import { ExtendedContentPanel, InputField } from '@components';
-import { ANALYTICS_CATEGORIES } from '@services';
-import { ScreenLockContext } from './ScreenLockProvider';
+import { Button } from '@mycrypto/ui';
+import { connect, ConnectedProps } from 'react-redux';
+import styled from 'styled-components';
 
 import mainImage from '@assets/images/icn-unlock-wallet.svg';
-import { useAnalytics } from '@utils';
+import { Body, ExtendedContentPanel, InputField, LinkApp } from '@components';
+import { getKBHelpArticle, KB_HELP_ARTICLE, ROUTE_PATHS } from '@config';
+import { AppState, getDecryptionError } from '@store';
+import translate, { translateRaw } from '@translations';
+
+import { ScreenLockContext } from './ScreenLockProvider';
 
 const ContentWrapper = styled.div`
   display: flex;
@@ -42,7 +43,10 @@ const BottomActions = styled.div`
   line-height: 2.5;
 `;
 
-const ScreenLockLocked: FC<RouteComponentProps> = () => {
+const ScreenLockLocked = ({ getDecryptionError: decryptErrorRedux }: Props) => {
+  const { decryptWithPassword, decryptError: decryptErrorContext } = useContext(ScreenLockContext);
+  const decryptError = decryptErrorContext || decryptErrorRedux;
+
   const [state, setState] = useState<{
     password: string;
     passwordError: string;
@@ -50,73 +54,68 @@ const ScreenLockLocked: FC<RouteComponentProps> = () => {
     password: '',
     passwordError: ''
   });
-  const trackScreenLock = useAnalytics({
-    category: ANALYTICS_CATEGORIES.SCREEN_LOCK,
-    actionName: 'Why do we recommend link clicked'
-  });
 
-  const onPasswordChanged = useCallback(
-    (event) => {
-      setState({ password: event.target.value, passwordError: '' });
-    },
-    [setState]
-  );
+  useEffect(() => {
+    if (decryptError) {
+      setState({ password: '', passwordError: translateRaw('SCREEN_LOCK_LOCKED_WRONG_PASSWORD') });
+    }
+  }, [decryptError]);
 
-  const handleUnlockWalletClick = useCallback(
-    async (decryptWithPassword: any, e: any) => {
-      e.preventDefault();
-      const response = await decryptWithPassword(state.password);
-      if (response === false) {
-        setState((prevState) => ({
-          ...prevState,
-          passwordError: translateRaw('SCREEN_LOCK_LOCKED_WRONG_PASSWORD')
-        }));
-      }
-    },
-    [state, setState]
-  );
+  const handleUnlockWalletClick = (e: React.FormEvent) => {
+    e.preventDefault();
+    decryptWithPassword(state.password);
+  };
 
   return (
-    <ScreenLockContext.Consumer>
-      {({ decryptWithPassword }) => (
-        <ExtendedContentPanel
-          heading={translateRaw('SCREEN_LOCK_LOCKED_HEADING')}
-          description={translateRaw('SCREEN_LOCK_LOCKED_DESCRIPTION')}
-          image={mainImage}
-          showImageOnTop={true}
-          centered={true}
-          className=""
-        >
-          <ContentWrapper>
-            <FormWrapper onSubmit={(e) => handleUnlockWalletClick(decryptWithPassword, e)}>
-              <InputField
-                label={translateRaw('SCREEN_LOCK_LOCKED_PASSWORD_LABEL')}
-                value={state.password}
-                onChange={onPasswordChanged}
-                inputError={state.passwordError}
-                type={'password'}
-              />
-              <PrimaryButton type="submit">{translate('SCREEN_LOCK_LOCKED_UNLOCK')}</PrimaryButton>
-            </FormWrapper>
-            <BottomActions>
-              <div>
-                {translate('SCREEN_LOCK_LOCKED_FORGOT_PASSWORD')}{' '}
-                <Link to="/screen-lock/forgot-password">
-                  {translate('SCREEN_LOCK_LOCKED_IMPORT_SETTINGS')}
-                </Link>
-              </div>
-              <div>
-                {translate('SCREEN_LOCK_LOCKED_RECOMMEND_LOCK')}{' '}
-                <Link onClick={() => trackScreenLock()} to="/dashboard">
-                  {translate('SCREEN_LOCK_LOCKED_LEARN_MORE')}
-                </Link>
-              </div>
-            </BottomActions>
-          </ContentWrapper>
-        </ExtendedContentPanel>
-      )}
-    </ScreenLockContext.Consumer>
+    <ExtendedContentPanel
+      heading={translateRaw('SCREEN_LOCK_LOCKED_HEADING')}
+      description={translateRaw('SCREEN_LOCK_LOCKED_DESCRIPTION')}
+      image={mainImage}
+      showImageOnTop={true}
+      centered={true}
+      className=""
+    >
+      <ContentWrapper>
+        <FormWrapper onSubmit={handleUnlockWalletClick}>
+          <InputField
+            label={translateRaw('SCREEN_LOCK_LOCKED_PASSWORD_LABEL')}
+            value={state.password}
+            onChange={(e) => setState({ password: e.target.value, passwordError: '' })}
+            inputError={state.passwordError}
+            type={'password'}
+          />
+          <Body>
+            The Screen Lock feature is being removed. You will not be able to lock MyCrypto again.{' '}
+            <LinkApp href={getKBHelpArticle(KB_HELP_ARTICLE.WHAT_IS_SCREEN_LOCK)} isExternal={true}>
+              Read More
+            </LinkApp>
+          </Body>
+          <PrimaryButton type="submit">{translate('SCREEN_LOCK_LOCKED_UNLOCK')}</PrimaryButton>
+        </FormWrapper>
+        <BottomActions>
+          <div>
+            {translate('SCREEN_LOCK_LOCKED_FORGOT_PASSWORD')}{' '}
+            <LinkApp href={ROUTE_PATHS.SCREEN_LOCK_FORGOT.path}>
+              {translate('SCREEN_LOCK_LOCKED_IMPORT_SETTINGS')}
+            </LinkApp>
+          </div>
+          <div>
+            {translate('SCREEN_LOCK_LOCKED_RECOMMEND_LOCK')}{' '}
+            <LinkApp href={getKBHelpArticle(KB_HELP_ARTICLE.WHAT_IS_SCREEN_LOCK)} isExternal={true}>
+              {translate('SCREEN_LOCK_LOCKED_LEARN_MORE')}
+            </LinkApp>
+          </div>
+        </BottomActions>
+      </ContentWrapper>
+    </ExtendedContentPanel>
   );
 };
 
-export default withRouter(ScreenLockLocked);
+const mapStateToProps = (state: AppState) => ({
+  getDecryptionError: getDecryptionError(state)
+});
+
+const connector = connect(mapStateToProps);
+type Props = ConnectedProps<typeof connector>;
+
+export default connector(ScreenLockLocked);

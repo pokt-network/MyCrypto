@@ -1,43 +1,24 @@
 import BN from 'bn.js';
 import { addHexPrefix } from 'ethereumjs-util';
 
-import {
-  StoreAccount,
-  ITxConfig,
-  IHexStrTransaction,
-  ITxObject,
-  StoreAsset,
-  ISwapAsset,
-  ITxValue,
-  ITxGasPrice,
-  ITxGasLimit,
-  ITxNonce,
-  ITxData
-} from '@types';
-import { getAssetByUUID, getAssetByTicker, DexService } from '@services';
-import { hexToString, appendGasPrice, appendSender } from '@services/EthService';
 import { WALLET_STEPS } from '@components';
-import { weiToFloat } from '@utils';
-
-import { IAssetPair, LAST_CHANGED_AMOUNT } from './types';
-
-export const getTradeOrder = (assetPair: IAssetPair, account: StoreAccount) => async () => {
-  const { lastChangedAmount, fromAsset, fromAmount, toAsset, toAmount } = assetPair;
-  const { address, network } = account;
-  const isLastChangedTo = lastChangedAmount === LAST_CHANGED_AMOUNT.TO;
-  // Trade order details depends on the direction of the asset exchange.
-  const getOrderDetails = isLastChangedTo
-    ? DexService.instance.getOrderDetailsTo
-    : DexService.instance.getOrderDetailsFrom;
-
-  return getOrderDetails(
-    fromAsset.ticker,
-    toAsset.ticker,
-    (isLastChangedTo ? toAmount : fromAmount).toString()
-  )
-    .then((txs) => Promise.all(txs.map(appendSender(address))))
-    .then((txs) => Promise.all(txs.map(appendGasPrice(network))));
-};
+import { DEFAULT_ASSET_DECIMAL } from '@config';
+import { getAssetByTicker, getAssetByUUID } from '@services';
+import {
+  IHexStrTransaction,
+  ISwapAsset,
+  ITxConfig,
+  ITxData,
+  ITxGasLimit,
+  ITxGasPrice,
+  ITxNonce,
+  ITxObject,
+  ITxValue,
+  StoreAccount,
+  StoreAsset,
+  TUuid
+} from '@types';
+import { hexToString, toTokenBase, weiToFloat } from '@utils';
 
 export const makeSwapTxConfig = (assets: StoreAsset[]) => (
   transaction: ITxObject,
@@ -59,11 +40,11 @@ export const makeSwapTxConfig = (assets: StoreAsset[]) => (
     asset,
     baseAsset,
     gasPrice: hexToString(gasPrice),
-    gasLimit,
+    gasLimit: hexToString(gasLimit),
     value: fromAmount,
-    nonce,
+    nonce: hexToString(nonce),
     data,
-    rawTransaction: Object.assign({}, transaction, { chainId: network.chainId, to: address })
+    rawTransaction: Object.assign({}, transaction, { chainId: network.chainId })
   };
 
   return txConfig;
@@ -82,24 +63,47 @@ export const makeTxObject = (config: ITxConfig): IHexStrTransaction => {
 };
 
 // filter accounts based on wallet type and sufficient balance
-// @todo: include fees check
 export const getAccountsWithAssetBalance = (
   accounts: StoreAccount[],
   fromAsset: ISwapAsset,
-  fromAmount: string
+  fromAmount: string,
+  baseAssetUuid?: TUuid,
+  baseAssetAmount?: string
 ) =>
   accounts.filter((acc) => {
     if (!WALLET_STEPS[acc.wallet]) {
       return false;
     }
 
-    const asset = acc.assets.find((x) => x.ticker === fromAsset.ticker);
+    const asset = getAssetByUUID(acc.assets)(fromAsset.uuid) as StoreAsset;
     if (!asset) {
       return false;
     }
 
-    const amount = weiToFloat(asset.balance, asset.decimal);
-    if (amount < Number(fromAmount)) {
+    const assetBalance = weiToFloat(asset.balance, asset.decimal);
+    if (assetBalance.lt(fromAmount)) {
+      return false;
+    }
+
+    if (!baseAssetUuid || !baseAssetAmount) {
+      return true;
+    }
+
+    const baseAsset = getAssetByUUID(acc.assets)(baseAssetUuid) as StoreAsset;
+    if (!baseAsset) {
+      return false;
+    }
+
+    const baseAssetUsed =
+      asset.uuid === baseAssetUuid
+        ? toTokenBase(fromAmount, asset.decimal || DEFAULT_ASSET_DECIMAL)
+        : 0;
+
+    const baseAssetBalance = weiToFloat(
+      baseAsset.balance.sub(baseAssetUsed.toString()),
+      baseAsset.decimal
+    );
+    if (baseAssetBalance.lt(baseAssetAmount)) {
       return false;
     }
 
@@ -113,4 +117,4 @@ export const getUnselectedAssets = (
 ) =>
   !toAsset || !fromAsset
     ? assets
-    : assets.filter((x) => fromAsset.ticker !== x.ticker && toAsset.ticker !== x.ticker);
+    : assets.filter((x) => fromAsset.uuid !== x.uuid && toAsset.uuid !== x.uuid);

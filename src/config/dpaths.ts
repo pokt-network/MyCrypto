@@ -1,3 +1,5 @@
+import { DPath } from '@types';
+
 const ETH_DEFAULT: DPath = {
   label: 'Default (ETH)',
   value: "m/44'/60'/0'/0"
@@ -90,21 +92,6 @@ const GO_DEFAULT: DPath = {
   value: "m/44'/6060'/0'/0"
 };
 
-const ESN_DEFAULT: DPath = {
-  label: 'Default (ESN)',
-  value: "m/44'/31102'/0'/0"
-};
-
-const AKA_DEFAULT: DPath = {
-  label: 'Default (AKA)',
-  value: "m/44'/200625'/0'/0"
-};
-
-const PIRL_DEFAULT: DPath = {
-  label: 'Default (PIRL)',
-  value: "m/44'/164'/0'/0"
-};
-
 const ATH_DEFAULT: DPath = {
   label: 'Default (ATH)',
   value: "m/44'/1620'/0'/0"
@@ -189,6 +176,11 @@ const EWC_DEFAULT: DPath = {
   value: "m/44'/246'/0'/0"
 };
 
+const AVAX_DEFAULT: DPath = {
+  label: 'Default (AVAX)',
+  value: "m/44'/60'/0'/0"
+};
+
 export const DPathsList = {
   ETH_DEFAULT,
   ETH_TREZOR,
@@ -207,9 +199,6 @@ export const DPathsList = {
   RSK_MAINNET,
   RSK_TESTNET,
   GO_DEFAULT,
-  ESN_DEFAULT,
-  AKA_DEFAULT,
-  PIRL_DEFAULT,
   ATH_DEFAULT,
   ETHO_DEFAULT,
   MIX_DEFAULT,
@@ -227,7 +216,8 @@ export const DPathsList = {
   ETH_SINGULAR,
   ERE_DEFAULT,
   VOLTA_DEFAULT,
-  EWC_DEFAULT
+  EWC_DEFAULT,
+  AVAX_DEFAULT
 };
 
 // PATHS TO BE INCLUDED REGARDLESS OF WALLET FORMAT
@@ -244,7 +234,7 @@ export const DPathsList = {
 
 // whitespace strings are evaluated the same way as nospace strings, except they allow optional spaces between each portion of the string
 // ie. "m / 44' / 0' / 0'" is valid, "m / 4 4' / 0' / 0'" is invalid
-export const dPathRegex = /m\/4[4,9]'\/[0-9]+\'\/[0-9]+(\'+$|\'+(\/[0-1]+$))/;
+export const dPathRegex = /m\/4[4,9]'\/[0-9]+'\/[0-9]+('+$|'+(\/[0-1]+$))/;
 // const whitespaceDPathRegex = /m\s*\/\s*44'\s*\/\s*[0-9]+\'\s*\/\s*[0-9]+(\'+$|\'+\s*(\/\s*[0-1]+$))/;
 
 /**
@@ -255,8 +245,8 @@ export const LEDGER_DERIVATION_PATHS: DPath[] = [
   ETH_DEFAULT,
   ETH_LEDGER,
   ETC_LEDGER,
-  ETH_TESTNET
-  //ETH_LEDGER_LIVE @todo: re-add this when custom dpath addition ui components are done
+  ETH_TESTNET,
+  ETH_LEDGER_LIVE
 ];
 
 /**

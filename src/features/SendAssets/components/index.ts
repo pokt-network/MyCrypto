@@ -1,9 +1,10 @@
-import { translateRaw } from '@translations';
-import { withProtectTx } from '@features/ProtectTransaction/components/WithProtectTx';
 import ConfirmTransaction from '@components/TransactionFlow/ConfirmTransaction';
+import { withProtectTx } from '@features/ProtectTransaction/components/WithProtectTx';
+import { translateRaw } from '@translations';
 
-import SignTransaction from './SignTransaction';
 import SendAssetsForm from './SendAssetsForm';
+import SignTransaction from './SignTransaction';
+
 export * from './validators';
 export * from './fields';
 
@@ -12,7 +13,11 @@ const ConfirmTransactionWithProtectTx = withProtectTx(
   ConfirmTransaction,
   translateRaw('CONFIRM_TX_MODAL_TITLE')
 );
-const SendAssetsFormWithProtectTx = withProtectTx(SendAssetsForm, translateRaw('SEND_ASSETS'));
+const SendAssetsFormWithProtectTx = withProtectTx(
+  SendAssetsForm,
+  translateRaw('SEND_ASSETS'),
+  true
+);
 
 export {
   SendAssetsForm,

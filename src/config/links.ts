@@ -1,8 +1,8 @@
 import { translateRaw } from '@translations';
-import { CRYPTOSCAMDB } from './data';
 import { TURL } from '@types';
 
 import SocialTelegramIcon from '../assets/images/social-icons/social-telegram-white.svg';
+import { CRYPTOSCAMDB } from './data';
 
 interface Link {
   link: string;
@@ -16,6 +16,12 @@ interface IExtUrl {
 }
 
 export const DOWNLOAD_MYCRYPTO_LINK = 'https://download.mycrypto.com';
+
+export const SUBSCRIBE_NEWSLETTER_LINK = 'http://eepurl.com/ggh4r5';
+
+export const MYCRYPTO_PROD_LINK = 'https://app.mycrypto.com';
+
+export const MYCRYPTO_FAUCET_LINK = `${MYCRYPTO_PROD_LINK}/faucet`;
 
 export const socialMediaLinks: Link[] = [
   {
@@ -109,6 +115,14 @@ const affiliateLinks: IExtUrl[] = [
   {
     name: 'COINBASE_REFERRAL',
     url: 'https://coinbase-consumer.sjv.io/RVmkN' as TURL
+  },
+  {
+    name: 'POOLTOGETHER_REFERRAL',
+    url: 'https://app.pooltogether.com/?referrer=0x3186f968aaa3a670354e33a9ad679d98858dda5b' as TURL
+  },
+  {
+    name: 'MYCRYPTO_WINTER_REFERRAL',
+    url: 'https://winter.mycrypto.com/?utm_source=mycrypto&utm_medium=banner&utm_campaign=winter' as TURL
   }
 ];
 
@@ -130,6 +144,12 @@ export const partnerLinks: Link[] = [
     text: 'Etherchain'
   }
 ];
+
+export const UNISWAP_LINK = 'https://app.uniswap.org/';
+
+export const MYC_WINTER_LINK = 'https://winter.mycrypto.com';
+
+export const TWEET_LINK = 'https://twitter.com/intent/tweet?text=';
 
 function createNavLinksFromExternalLinks(links: IExtUrl[]) {
   return links.reduce((acc, link) => {

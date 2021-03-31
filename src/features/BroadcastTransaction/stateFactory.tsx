@@ -1,17 +1,19 @@
 import { useContext } from 'react';
 
-import { TUseStateReducerFactory, makePendingTxReceipt, makeTxConfigFromSignedTx } from '@utils';
-import { ITxReceipt, ITxConfig, ISignedTx, NetworkId, ITxType, ITxHash } from '@types';
+import { makePendingTxReceipt, makeTxConfigFromSignedTx } from 'helpers';
+
 import { DEFAULT_NETWORK } from '@config';
-import { StoreContext, useAssets, useNetworks } from '@services/Store';
 import { ProviderHandler } from '@services/EthService';
-import { ToastContext } from '@features/Toasts';
+import { StoreContext, useAssets, useNetworks } from '@services/Store';
+import { ISignedTx, ITxConfig, ITxHash, ITxReceipt, ITxType, NetworkId } from '@types';
+import { TUseStateReducerFactory } from '@utils';
 
 const broadcastTxInitialState: State = {
   network: DEFAULT_NETWORK,
   txReceipt: undefined,
   txConfig: undefined,
-  signedTx: ''
+  signedTx: '',
+  error: undefined
 };
 
 interface State {
@@ -19,12 +21,12 @@ interface State {
   txConfig: ITxConfig | undefined;
   txReceipt: ITxReceipt | undefined;
   signedTx: ISignedTx;
+  error: string | undefined;
 }
 
 const BroadcastTxConfigFactory: TUseStateReducerFactory<State> = ({ state, setState }) => {
   const { networks, getNetworkById } = useNetworks();
   const { assets } = useAssets();
-  const { displayToast, toastTemplates } = useContext(ToastContext);
   const { accounts } = useContext(StoreContext);
 
   const handleNetworkChanged = (network: NetworkId) => {
@@ -68,7 +70,10 @@ const BroadcastTxConfigFactory: TUseStateReducerFactory<State> = ({ state, setSt
       cb();
     } catch (err) {
       console.debug(`[BroadcastTx] ${err}`);
-      displayToast(toastTemplates.failedTransaction);
+      setState((prevState: State) => ({
+        ...prevState,
+        error: err.reason ? err.reason : err.message
+      }));
     }
   };
 

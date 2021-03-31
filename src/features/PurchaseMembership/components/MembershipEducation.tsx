@@ -1,28 +1,27 @@
 import React from 'react';
-import styled from 'styled-components';
-import { withRouter, Link } from 'react-router-dom';
+
 import { Accordion } from '@mycrypto/ui';
-
-import { FullSizeContentPanel, Button, Typography } from '@components';
-import translate from '@translations';
-import { ROUTE_PATHS } from '@config';
-import { BREAK_POINTS, SPACING, COLORS } from '@theme';
-
-import {
-  FullSizePanelSection,
-  SpacedPanelSection,
-  RowPanelSection
-} from '../../../components/FullSizeContentPanel';
-import { MEMBERSHIP_CONFIG, IMembershipId, accordionContent } from '../config';
-import MembershipPlanCard from './MembershipPlanCard';
+import styled from 'styled-components';
 
 import membershipIllustration from '@assets/images/membership/membership-illustration.svg';
 import membershipLifetime from '@assets/images/membership/membership-lifetime.svg';
-import membershipUnlimited from '@assets/images/membership/membership-unlimited-transaction.svg';
 import membershipNoAds from '@assets/images/membership/membership-no-ads.svg';
 import membershipNoSponsor from '@assets/images/membership/membership-no-sponsor.svg';
-import membershipStickers from '@assets/images/membership/membership-stickers.svg';
 import membershipShirt from '@assets/images/membership/membership-shirt.svg';
+import membershipStickers from '@assets/images/membership/membership-stickers.svg';
+import membershipUnlimited from '@assets/images/membership/membership-unlimited-transaction.svg';
+import { Button, FullSizeContentPanel, LinkApp, Typography } from '@components';
+import { getKBHelpArticle, KB_HELP_ARTICLE, ROUTE_PATHS } from '@config';
+import { BREAK_POINTS, COLORS, SPACING } from '@theme';
+import translate from '@translations';
+
+import {
+  FullSizePanelSection,
+  RowPanelSection,
+  SpacedPanelSection
+} from '../../../components/FullSizeContentPanel';
+import { accordionContent, IMembershipId, MEMBERSHIP_CONFIG } from '../config';
+import MembershipPlanCard from './MembershipPlanCard';
 
 const Heading = styled(FullSizePanelSection)`
   @media screen and (max-width: ${BREAK_POINTS.SCREEN_SM}) {
@@ -124,19 +123,19 @@ const ListImg = styled.img`
 const PlanContainer = styled.div`
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  width: 100%;
+  justify-content: center;
+  width: 90%;
   margin-bottom: ${SPACING.LG};
+  & div {
+    margin-bottom: 15px;
+  }
+  div:nth-child(odd) {
+    margin-left: 15px;
+    margin-right: 15px;
+  }
 `;
 
-const Disclaimer = styled(Typography)`
-  color: ${COLORS.GREY};
-  width: 80%;
-  text-align: center;
-`;
-
-const MembershipEducation = withRouter(({ history }) => {
-  const handleSubmit = () => history.push(`${ROUTE_PATHS.MYC_MEMBERSHIP_BUY.path}`);
+const MembershipEducation = () => {
   return (
     <FullSizeContentPanel width={'1100px'}>
       <Heading>{translate('MEMBERSHIP')}</Heading>
@@ -145,7 +144,9 @@ const MembershipEducation = withRouter(({ history }) => {
         <DescriptionColumn>
           <Typography as="div">{translate('MEMBERSHIP_DESC_FIRST')}</Typography>
           <Typography as="div">{translate('MEMBERSHIP_DESC_SECOND')}</Typography>
-          <SButton onClick={handleSubmit}>{translate('BUY_MEMBERSHIP_NOW')}</SButton>
+          <LinkApp href={ROUTE_PATHS.MYC_MEMBERSHIP_BUY.path}>
+            <SButton>{translate('BUY_MEMBERSHIP_NOW')}</SButton>
+          </LinkApp>
         </DescriptionColumn>
       </RowPanelSection>
       <SpacedPanelSection color={COLORS.GREY_LIGHTEST}>
@@ -163,7 +164,12 @@ const MembershipEducation = withRouter(({ history }) => {
             <ListItem>
               <ListImg src={membershipUnlimited} />
               <Typography>{translate('MEMBERSHIP_LIST_THIRD_1')}</Typography>&nbsp;
-              <Link to={ROUTE_PATHS.DASHBOARD.path}>{translate('MEMBERSHIP_LIST_THIRD_2')}</Link>
+              <LinkApp
+                href={getKBHelpArticle(KB_HELP_ARTICLE.WHAT_ARE_PROTECTED_TRANSACTIONS)}
+                isExternal={true}
+              >
+                {translate('MEMBERSHIP_LIST_THIRD_2')}
+              </LinkApp>
             </ListItem>
             <ListItem>
               <ListImg src={membershipNoAds} />
@@ -187,21 +193,29 @@ const MembershipEducation = withRouter(({ history }) => {
         </ListContainer>
         <Title>{translate('WHAT_IT_COST')}</Title>
         <PlanContainer>
-          {Object.keys(MEMBERSHIP_CONFIG).map((key) => (
-            <MembershipPlanCard key={key} plan={MEMBERSHIP_CONFIG[key as IMembershipId]} />
-          ))}
+          {Object.values(MEMBERSHIP_CONFIG)
+            .filter(({ disabled }) => !disabled)
+            .map((membershipConfig) => (
+              <MembershipPlanCard
+                key={membershipConfig.key}
+                plan={MEMBERSHIP_CONFIG[membershipConfig.key as IMembershipId]}
+              />
+            ))}
         </PlanContainer>
-        <SButton onClick={handleSubmit}>{translate('BUY_MEMBERSHIP_NOW')}</SButton>
-        <Disclaimer>{translate('MEMBERSHIP_NOTE')}</Disclaimer>
+        <LinkApp href={ROUTE_PATHS.MYC_MEMBERSHIP_BUY.path}>
+          <SButton>{translate('BUY_MEMBERSHIP_NOW')}</SButton>
+        </LinkApp>
       </SpacedPanelSection>
       <SpacedPanelSection>
         <Title>{translate('ZAP_QUESTIONS_HEADER')}</Title>
         <Accordion items={accordionContent} />
         <Typography as="div">{translate('MEMBERSHIP_MORE_FAQ')}</Typography>
-        <SButton onClick={handleSubmit}>{translate('BUY_MEMBERSHIP_NOW')}</SButton>
+        <LinkApp href={ROUTE_PATHS.MYC_MEMBERSHIP_BUY.path}>
+          <SButton>{translate('BUY_MEMBERSHIP_NOW')}</SButton>
+        </LinkApp>
       </SpacedPanelSection>
     </FullSizeContentPanel>
   );
-});
+};
 
 export default MembershipEducation;

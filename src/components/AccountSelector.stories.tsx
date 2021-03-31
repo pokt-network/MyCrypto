@@ -1,11 +1,12 @@
 import React from 'react';
-import { fAccounts, fAssets } from '@fixtures';
 
+import { fAccounts, fAssets } from '@fixtures';
 import { noOp } from '@utils';
+
 import AccountSelector from './AccountSelector';
 import AccountSummary from './AccountSummary';
 
-export default { title: 'Selectors/AccountSelector' };
+export default { title: 'Molecules/Selectors/AccountSelector', component: AccountSelector };
 
 const initialProps: React.ComponentProps<typeof AccountSelector> = {
   accounts: fAccounts,
@@ -19,10 +20,10 @@ export const Selector = () => {
   return (
     <div className="sb-container">
       <form role="form">
-        <AccountSelector clearable={true} {...initialProps} />
+        <AccountSelector {...initialProps} />
       </form>
       <form role="form">
-        <AccountSelector clearable={true} {...withAsset} />
+        <AccountSelector {...withAsset} />
       </form>
     </div>
   );

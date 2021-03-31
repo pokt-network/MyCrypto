@@ -1,6 +1,6 @@
-import { IAccount, Contact, Network, WalletId, ExtendedContact, TAddress } from '@types';
+import { DEFAULT_NETWORK, getWalletConfig } from '@config';
+import { Contact, ExtendedContact, IAccount, Network, TAddress, WalletId } from '@types';
 import { isSameAddress } from '@utils';
-import { getWalletConfig, DEFAULT_NETWORK } from '@config';
 
 export const getLabelByAccount = (
   account: IAccount,
@@ -46,9 +46,6 @@ const getUnusedLabel = (contacts: Contact[], generateLabel: (index: number) => s
 
   return unusedLabel;
 };
-
-export const findNextUnusedDefaultLabel = (wallet: WalletId) => (contacts: Contact[]): string =>
-  getUnusedLabel(contacts, (index) => `${getWalletConfig(wallet).name} Account ${index}`);
 
 export const findMultipleNextUnusedDefaultLabels = (wallet: WalletId, numOfLabels: number) => (
   contacts: Contact[]

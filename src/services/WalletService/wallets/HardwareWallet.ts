@@ -1,11 +1,11 @@
-import Wallet from './Wallet';
+import { computeAddress } from '@ethersproject/transactions';
 import HDKey from 'hdkey';
-import { computeAddress } from 'ethers/utils';
 
-import { WalletId } from '@types';
+import { DPath, WalletId } from '@types';
 
 import { getFullPath } from './helpers';
 import { WalletResult } from './types';
+import Wallet from './Wallet';
 
 export interface KeyInfo {
   publicKey: string;
@@ -34,7 +34,7 @@ export default abstract class HWWallet implements Wallet {
     };
   }
 
-  public abstract initialize(): Promise<void>;
+  public abstract initialize(dpath?: DPath): Promise<void>;
 
   public abstract getDPaths(): DPath[];
 

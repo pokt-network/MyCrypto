@@ -1,12 +1,13 @@
 import React from 'react';
-import styled from 'styled-components';
-import { Typography as UITypography } from '@mycrypto/ui';
 
-import { useScreenSize } from '@utils';
+import { Typography as UITypography } from '@mycrypto/ui';
+import styled from 'styled-components';
+
 import { BREAK_POINTS } from '@theme';
+import { useScreenSize } from '@utils';
 
 export interface Props {
-  as?: string;
+  as?: keyof JSX.IntrinsicElements | React.ComponentType<any>;
   value?: string | React.ReactElement;
   bold?: boolean;
   fontSize?: string;
@@ -85,10 +86,7 @@ const Typography: React.FC<Props> = ({
   const maxCharLen = isMobile ? 58 : 75;
 
   return (
-    // ForwardedAs is not respected so use SC as
-    // https://styled-components.com/docs/api#forwardedas-prop
     <STypography
-      // @ts-ignore
       as={as}
       $bold={bold}
       $fontSize={fontSize}

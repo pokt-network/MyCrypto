@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import styled from 'styled-components';
-import * as Yup from 'yup';
+
 import { Formik } from 'formik';
+import styled from 'styled-components';
+import { object, string } from 'yup';
 
-import { Typography, Button, AssetSelector, Input } from '@components';
-import { COLORS, BREAK_POINTS, SPACING, FONT_SIZE } from '@theme';
-import { DeterministicWalletState, ExtendedDPath, isValidPath } from '@services';
-import translate, { Trans, translateRaw } from '@translations';
-import { DEFAULT_GAP_TO_SCAN_FOR, DEFAULT_NUM_OF_ACCOUNTS_TO_SCAN } from '@config';
-import { accountsToCSV, useScreenSize, makeBlob } from '@utils';
-import { ExtendedAsset, Network } from '@types';
-
+import { AssetSelector, Button, Input, Typography } from '@components';
 import Icon from '@components/Icon';
+import { DEFAULT_GAP_TO_SCAN_FOR, DEFAULT_NUM_OF_ACCOUNTS_TO_SCAN } from '@config';
+import { DeterministicWalletState, ExtendedDPath, isValidPath } from '@services';
+import { BREAK_POINTS, COLORS, FONT_SIZE, SPACING } from '@theme';
+import translate, { Trans, translateRaw } from '@translations';
+import { DPath, ExtendedAsset, Network } from '@types';
+import { accountsToCSV, filterValidAssets, sortByTicker, useScreenSize } from '@utils';
 
+import { Downloader } from '../Downloader';
 import DeterministicAccountList from './DeterministicAccountList';
 
 const MnemonicWrapper = styled.div`
@@ -79,7 +80,7 @@ const SButton = styled(Button)`
   margin: ${SPACING.MD} 0;
 `;
 
-const SLink = styled.span`
+const SDownloader = styled(Downloader)`
   color: ${COLORS.BLUE_MYC};
   cursor: pointer;
   font-weight: bold;
@@ -170,17 +171,18 @@ const DeterministicWallet = ({
     }
   };
 
-  const handleDownload = () =>
-    window.open(makeBlob('text/csv', accountsToCSV(state.finishedAccounts, assetToUse)));
+  const csv = accountsToCSV(state.finishedAccounts, assetToUse);
 
-  const Schema = Yup.object().shape({
-    label: Yup.string().required(translateRaw('REQUIRED')),
-    value: Yup.string()
+  const Schema = object().shape({
+    label: string().required(translateRaw('REQUIRED')),
+    value: string()
       .required(translateRaw('REQUIRED'))
       .test('check-valid-path', translateRaw('DETERMINISTIC_INVALID_DPATH'), (value) =>
         isValidPath(value)
       )
   });
+  const relevantAssets = network ? filterValidAssets(assets, network.id) : [];
+  const filteredAssets = sortByTicker(relevantAssets);
 
   return dpathAddView ? (
     <MnemonicWrapper>
@@ -232,9 +234,9 @@ const DeterministicWallet = ({
       </Formik>
       <Typography>
         <Trans id="DETERMINISTIC_SEE_SUMMARY" />{' '}
-        <SLink onClick={handleDownload}>
+        <SDownloader data={csv} fileName="accounts.csv" mime="text/csv">
           <Trans id="DETERMINISTIC_ALTERNATIVES_5" />
-        </SLink>
+        </SDownloader>
         .
       </Typography>
     </MnemonicWrapper>
@@ -251,12 +253,15 @@ const DeterministicWallet = ({
       <Parameters>
         <AssetSelector
           selectedAsset={assetToUse}
-          assets={assets}
+          showAssetIcon={false}
+          showAssetName={true}
+          searchable={true}
+          assets={filteredAssets}
           onSelect={(option: ExtendedAsset) => {
             handleAssetUpdate(option);
           }}
         />
-        <Button onClick={() => setDpathAddView(true)} inverted={true}>
+        <Button onClick={() => setDpathAddView(true)} colorScheme={'inverted'}>
           <Trans id="MNEMONIC_ADD_CUSTOM_DPATH" />
         </Button>
       </Parameters>

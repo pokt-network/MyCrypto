@@ -1,16 +1,17 @@
 import React, { FC, useCallback, useContext } from 'react';
-import styled from 'styled-components';
+
 import isEmpty from 'lodash/isEmpty';
 import values from 'lodash/values';
+import styled from 'styled-components';
 
-import { SPACING } from '@theme';
 import CloseIcon from '@components/icons/CloseIcon';
 import ProtectIcon from '@components/icons/ProtectIcon';
-import { ITxConfig, ITxHash, ITxSigned, Network, StoreAccount } from '@types';
 import { WALLET_STEPS } from '@components/SignTransactionWallets';
+import { SPACING } from '@theme';
+import { ITxConfig, ITxHash, ITxSigned, Network, StoreAccount } from '@types';
 
-import ProtectTxBase from './ProtectTxBase';
 import { ProtectTxContext } from '../ProtectTxProvider';
+import ProtectTxBase from './ProtectTxBase';
 
 const SignProtectedTransaction = styled(ProtectTxBase)`
   .SignTransactionKeystore {
@@ -64,8 +65,7 @@ export const ProtectTxSign: FC<Props> = (props) => {
         onSuccess: async (payload: ITxHash | ITxSigned) =>
           await handleProtectTxConfirmAndSend(payload)
       };
-
-      // @ts-ignore
+      // @ts-expect-error: JSX element type does not have any construct or call signatures.
       return <SignComponent {...signComponentProps} />;
     }
 

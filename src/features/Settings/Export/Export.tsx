@@ -1,17 +1,16 @@
-import React, { useContext } from 'react';
-import styled from 'styled-components';
-import { withRouter, RouteComponentProps } from 'react-router-dom';
+import React from 'react';
+
 import { Typography } from '@mycrypto/ui';
+import { RouteComponentProps, withRouter } from 'react-router-dom';
+import styled from 'styled-components';
 
+import { ContentPanel, Downloader, InlineMessage } from '@components';
+import { getCurrentDBConfig, getExportFileName } from '@database';
+import { useUserActions } from '@services/Store';
+import { exportState, useSelector } from '@store';
 import translate, { translateRaw } from '@translations';
-import { ContentPanel, Downloader, Button, RouterLink } from '@components';
-import { SettingsContext } from '@services/Store';
-import { ROUTE_PATHS } from '@config';
-import { COLORS } from '@theme';
-
-const CenteredContentPanel = styled(ContentPanel)`
-  width: 35rem;
-`;
+import { ACTION_NAME, ACTION_STATE, InlineMessageType } from '@types';
+import { goBack, useScreenSize } from '@utils';
 
 const ImportSuccessContainer = styled.div`
   display: flex;
@@ -25,24 +24,36 @@ const CacheDisplay = styled.code`
   height: 10rem;
 `;
 
-export function Export(props: RouteComponentProps<{}>) {
+export function Export(props: RouteComponentProps) {
   const { history } = props;
-  const onBack = history.goBack;
-  const { exportStorage } = useContext(SettingsContext);
-  const data = exportStorage();
+  const onBack = () => goBack(history);
+  const appState = JSON.stringify(useSelector(exportState));
+  const { isMobile } = useScreenSize();
+
+  const { updateUserAction, findUserAction } = useUserActions();
+
+  const backupAction = findUserAction(ACTION_NAME.BACKUP);
+
   return (
-    <CenteredContentPanel onBack={onBack} heading={translateRaw('SETTINGS_EXPORT_HEADING')}>
+    <ContentPanel width={560} onBack={onBack} heading={translateRaw('SETTINGS_EXPORT_HEADING')}>
       <ImportSuccessContainer>
         <Typography>{translate('SETTINGS_EXPORT_INFO')}</Typography>
-        <CacheDisplay>{data}</CacheDisplay>
-        <RouterLink fullwidth={true} to={ROUTE_PATHS.SETTINGS.path}>
-          <Button color={COLORS.WHITE} fullwidth={true}>
-            {translate('SETTINGS_EXPORT_LEAVE')}
-          </Button>
-        </RouterLink>
-        <Downloader data={data} />
+        <CacheDisplay data-testid="export-json-display">{appState}</CacheDisplay>
+        {isMobile && (
+          <InlineMessage type={InlineMessageType.INFO_CIRCLE}>
+            {translateRaw('EXPORT_MOBILE_NOTICE')}{' '}
+          </InlineMessage>
+        )}
+        <Downloader
+          fileName={getExportFileName(getCurrentDBConfig(), new Date())}
+          data={appState}
+          onClick={() =>
+            backupAction &&
+            updateUserAction(backupAction.uuid, { ...backupAction, state: ACTION_STATE.COMPLETED })
+          }
+        />
       </ImportSuccessContainer>
-    </CenteredContentPanel>
+    </ContentPanel>
   );
 }
 

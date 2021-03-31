@@ -1,8 +1,8 @@
 import React from 'react';
 
 import { simpleRender, waitFor } from 'test-utils';
-import { fAccount, fTransaction, fNetwork } from '@fixtures';
-import { DataContext } from '@services';
+
+import { fAccount, fNetwork, fTransaction } from '@fixtures';
 
 import { default as WalletConnectComponent } from '../WalletConnect';
 
@@ -14,11 +14,7 @@ const defaultProps = {
 };
 
 const getComponent = ({ ...props }: typeof defaultProps) =>
-  simpleRender(
-    <DataContext.Provider value={{ networks: [fNetwork], createActions: jest.fn() } as any}>
-      <WalletConnectComponent {...props} />
-    </DataContext.Provider>
-  );
+  simpleRender(<WalletConnectComponent {...props} />);
 
 const mockCreateSession = jest.fn().mockResolvedValue('uri');
 const mockKillSession = jest.fn();
@@ -51,7 +47,7 @@ describe('SignTransactionWallets: WalletConnect', () => {
 
   test('It renders and can sign', async () => {
     const titleText = /Connect and Unlock/i;
-    const footerText = /Here are some troubleshooting/i;
+    const footerText = /What is WalletConnect/i;
 
     const { getByText } = getComponent(defaultProps);
     // Check html
@@ -59,9 +55,9 @@ describe('SignTransactionWallets: WalletConnect', () => {
     expect(getByText(footerText)).toBeDefined();
 
     // Ensure service is triggered
-    expect(mockCreateSession).toBeCalledTimes(1);
+    expect(mockCreateSession).toHaveBeenCalledTimes(1);
 
-    await waitFor(() => expect(defaultProps.onSuccess).toBeCalledWith('txhash'));
+    await waitFor(() => expect(defaultProps.onSuccess).toHaveBeenCalledWith('txhash'));
     expect(mockSend).toHaveBeenCalled();
   });
 });

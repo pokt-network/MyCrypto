@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
-import { Button } from '@mycrypto/ui';
+
 import styled from 'styled-components';
 
-import translate from '@translations';
-import { FormDataActionType as ActionType } from '../types';
-import { FormData, NetworkId } from '@types';
-import { NetworkSelectDropdown } from '@components';
-import { ANALYTICS_CATEGORIES } from '@services';
+import { Body, Box, Button, Heading, NetworkSelector } from '@components';
 import { useNetworks } from '@services/Store';
 import { SPACING } from '@theme';
-import { useAnalytics } from '@utils';
+import translate from '@translations';
+import { FormData, NetworkId } from '@types';
+
+import { FormDataActionType as ActionType } from '../types';
 
 const NetworkForm = styled.div`
   margin-top: ${SPACING.BASE};
@@ -38,17 +37,11 @@ interface Props {
 function NetworkSelectPanel({ formData, formDispatch, goToNextStep }: Props) {
   const { networks } = useNetworks();
   const [network, setNetwork] = useState<NetworkId>(formData.network);
-  const trackSelectNetwork = useAnalytics({
-    category: ANALYTICS_CATEGORIES.SELECT_NETWORK
-  });
 
   const onSubmit = () => {
     formDispatch({
       type: ActionType.SELECT_NETWORK,
       payload: { network }
-    });
-    trackSelectNetwork({
-      actionName: network
     });
     goToNextStep();
   };
@@ -56,11 +49,15 @@ function NetworkSelectPanel({ formData, formDispatch, goToNextStep }: Props) {
   const validNetwork = networks.some((n) => n.id === network);
 
   return (
-    <div className="Panel">
-      <div className="Panel-title">{translate('ADD_ACCOUNT_NETWORK_TITLE')}</div>
-      <div className="Panel-description">{translate('ADD_ACCOUNT_NETWORK_SELECT')}</div>
+    <Box m="2.5em" height="629px" position="relative">
+      <Heading fontSize="32px" textAlign="center" fontWeight="bold">
+        {translate('ADD_ACCOUNT_NETWORK_TITLE')}
+      </Heading>
+      <Body textAlign="center" fontSize="2" paddingTop="16px">
+        {translate('ADD_ACCOUNT_NETWORK_SELECT')}
+      </Body>
       <NetworkForm>
-        <NetworkSelectDropdown
+        <NetworkSelector
           network={network}
           accountType={formData.accountType!}
           onChange={setNetwork}
@@ -72,7 +69,7 @@ function NetworkSelectPanel({ formData, formDispatch, goToNextStep }: Props) {
           {translate('ADD_ACCOUNT_NETWORK_ACTION')}
         </SButton>
       </ButtonWrapper>
-    </div>
+    </Box>
   );
 }
 

@@ -1,6 +1,7 @@
 import React, { PureComponent } from 'react';
+
 import { createPortal } from 'react-dom';
-import { TransitionGroup, CSSTransition } from 'react-transition-group';
+import { CSSTransition, TransitionGroup } from 'react-transition-group';
 
 import ModalBody from './ModalBody';
 import { IButton } from './types';
@@ -25,7 +26,7 @@ const Fade = ({ ...props }: any) => (
   <CSSTransition {...props} timeout={300} classNames="animate-modal" />
 );
 
-export class Modal extends PureComponent<Props, {}> {
+export class Modal extends PureComponent<Props, never> {
   public modalParent: HTMLElement;
   public modalBody: ModalBody;
 

@@ -1,8 +1,9 @@
 import React from 'react';
-import styled from 'styled-components';
-import translate from '@translations';
 
-import { Button, RouterLink } from '@components';
+import styled from 'styled-components';
+
+import { Button, LinkApp } from '@components';
+import translate from '@translations';
 
 const ImportSuccessContainer = styled.div`
   display: flex;
@@ -14,11 +15,11 @@ export default function ImportSuccess() {
   return (
     <ImportSuccessContainer>
       {translate('SETTINGS_IMPORT_SUCCESS')}
-      <RouterLink to="/settings">
+      <LinkApp href="/settings">
         <Button fullwidth={true} secondary={true}>
           {translate('SETTINGS_IMPORT_COMPLETE')}
         </Button>
-      </RouterLink>
+      </LinkApp>
     </ImportSuccessContainer>
   );
 }

@@ -1,19 +1,20 @@
-import React, { useState, useContext } from 'react';
-import { withRouter, RouteComponentProps } from 'react-router-dom';
+import React, { useContext, useState } from 'react';
+
+import { useHistory, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 
-import { translateRaw } from '@translations';
 import { ExtendedContentPanel, Tabs, WALLET_STEPS } from '@components';
-import { ROUTE_PATHS, DEFAULT_NETWORK } from '@config';
-import { useStateReducer } from '@utils';
-import { ITxReceipt, ISignedTx, Tab } from '@types';
+import { DEFAULT_NETWORK, ROUTE_PATHS } from '@config';
 import { getNetworkById, StoreContext, useNetworks } from '@services/Store';
 import { BREAK_POINTS } from '@theme';
+import { translateRaw } from '@translations';
+import { ISignedTx, ITxReceipt, Tab } from '@types';
+import { useStateReducer } from '@utils';
 
-import { interactWithContractsInitialState, InteractWithContractsFactory } from './stateFactory';
 import { Interact, InteractionReceipt } from './components';
-import { ABIItem, InteractWithContractState } from './types';
 import InteractionConfirm from './components/InteractionConfirm';
+import { InteractWithContractsFactory, interactWithContractsInitialState } from './stateFactory';
+import { ABIItem, InteractWithContractState } from './types';
 
 const { SCREEN_XS } = BREAK_POINTS;
 
@@ -46,10 +47,11 @@ const TabsWrapper = styled.div`
   width: fit-content;
 `;
 
-const InteractWithContractsFlow = (props: RouteComponentProps<{}>) => {
+const InteractWithContractsFlow = () => {
   const [step, setStep] = useState(0);
-  const { defaultAccount } = useContext(StoreContext);
+  const { getDefaultAccount } = useContext(StoreContext);
   const { networks } = useNetworks();
+  const defaultAccount = getDefaultAccount();
   const initialState = {
     ...interactWithContractsInitialState,
     account: defaultAccount,
@@ -75,7 +77,8 @@ const InteractWithContractsFlow = (props: RouteComponentProps<{}>) => {
   } = useStateReducer(InteractWithContractsFactory, initialState);
 
   const { account }: InteractWithContractState = interactWithContractsState;
-  const { history, location } = props;
+  const history = useHistory();
+  const location = useLocation();
 
   const goToFirstStep = () => {
     setStep(0);
@@ -211,4 +214,4 @@ const InteractWithContractsFlow = (props: RouteComponentProps<{}>) => {
   );
 };
 
-export default withRouter(InteractWithContractsFlow);
+export default InteractWithContractsFlow;

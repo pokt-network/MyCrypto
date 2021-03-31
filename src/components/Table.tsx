@@ -4,15 +4,17 @@
 */
 
 import React, { Component, ReactNode } from 'react';
+
 import styled from 'styled-components';
-import path from 'ramda/src/path';
-import isFunction from 'lodash/isFunction';
 
-import { noOp } from '@utils';
 import { SPACING } from '@theme';
+import { noOp } from '@utils';
+import { path } from '@vendor';
 
+import Box from './Box';
+import Icon from './Icon';
+import { Text } from './NewTypography';
 import { default as Typography } from './Typography';
-import IconArrow from './IconArrow';
 
 export interface TableGroup {
   title: string;
@@ -37,7 +39,7 @@ export interface TableContent {
 
 export interface TableData extends TableContent {
   head: (string | JSX.Element)[];
-  overlay?: ReactNode;
+  overlay?: React.FC<{ indexKey: number | string }>;
   overlayRows?: (number | string)[];
   config?: TableConfig;
 }
@@ -63,9 +65,8 @@ interface CellProps {
 
 const sharedCellProperties = ({ isReversed }: CellProps) => `
   min-width: .75em;
-  padding: .75em;
-  text-align: ${isReversed ? 'right' : 'left'};
-  & >
+  padding: .75em 0.25em;
+  ${isReversed && 'text-align: right'};
 `;
 
 const TableHead = styled.tr`
@@ -90,13 +91,11 @@ const TableHeading = styled(Typography)<TableHeadingProps>`
   ${sharedCellProperties}
   color: ${(props) => props.theme.headline};
   font-weight: normal;
-  text-transform: uppercase;
-  letter-spacing: 0.0625em;
   border-top: '0px';
   position: sticky;
   top: 0;
   background: ${(props) => props.theme.tableHeadBackground};
-  z-index: 2;
+  z-index: 3;
   cursor: ${(props) => (props.isSortable ? 'pointer' : 'inherit')};
 `;
 
@@ -121,11 +120,6 @@ const TableGroupHead = styled(TableRow)`
 
 export const TableCell = styled(Typography)`
   ${sharedCellProperties};
-`;
-
-const SortPlaceholder = styled.div`
-  width: calc(9px + 0.5em);
-  display: inline-block;
 `;
 
 TableCell.defaultProps = {
@@ -214,16 +208,17 @@ class AbstractTable extends Component<Props, State> {
     const { overlayRoot } = config || { overlayRoot: false };
     const { body, groups } = this.getSortedLayout();
 
-    const isReversedColumn = (heading: any) =>
-      config && config.reversedColumns && config.reversedColumns.includes(heading);
+    const Overlay = overlay;
+
+    const isReversedColumn = (heading: any) => {
+      return config?.reversedColumns?.includes(heading);
+    };
+
     return (
       <table {...rest}>
         <thead>
           <TableHead>
             {head.map((heading, index) => {
-              const isSelectedSortableColumn = this.isCurrentColumnSortable(
-                getHeaderColumn(heading)
-              );
               const isSortableColumn = this.isColumnSortable(getHeaderColumn(heading));
 
               return (
@@ -239,13 +234,34 @@ class AbstractTable extends Component<Props, State> {
                   isReversed={isReversedColumn(heading)}
                   data-testid={isSortableColumn ? 'sortable-column-heading' : ''}
                 >
-                  {heading}
-                  {isSortableColumn &&
-                    (isSelectedSortableColumn ? (
-                      <IconArrow isFlipped={sortedColumnDirection === ColumnDirections.Reverse} />
+                  <Box
+                    variant="rowAlign"
+                    justifyContent={isReversedColumn(heading) ? 'flex-end' : 'flex-start'}
+                  >
+                    {typeof heading === 'string' ? (
+                      <>
+                        <Text
+                          as="span"
+                          textTransform="uppercase"
+                          fontSize="14px"
+                          letterSpacing="0.0625em"
+                        >
+                          {heading}
+                        </Text>
+                        {isSortableColumn && (
+                          <Icon
+                            ml="0.3ch"
+                            type="sort"
+                            isActive={sortedColumnDirection === ColumnDirections.Reverse}
+                            size="1em"
+                            color="linkAction"
+                          />
+                        )}
+                      </>
                     ) : (
-                      <SortPlaceholder />
-                    ))}
+                      <>{heading}</>
+                    )}
+                  </Box>
                 </TableHeading>
               );
             })}
@@ -258,24 +274,25 @@ class AbstractTable extends Component<Props, State> {
               overlayRoot &&
               row.length &&
               row[0] &&
-              row[0].hasOwnProperty('key') &&
+              Object.prototype.hasOwnProperty.call(row[0], 'key') &&
               (row[0] as any).key;
-            if (primaryRowKey && overlayRows!.includes(primaryRowKey)) {
+
+            if (Overlay && primaryRowKey && overlayRows!.includes(primaryRowKey)) {
               return (
                 <React.Fragment key={rowIndex}>
-                  {isFunction(overlay) ? overlay(primaryRowKey) : overlay}
+                  <Overlay indexKey={primaryRowKey} />
                 </React.Fragment>
               );
             }
 
             const isOverlayRowIncluded = overlay && overlayRows!.includes(rowIndex);
-            const overlayRow =
-              isOverlayRowIncluded && isFunction(overlay) ? overlay(rowIndex) : overlay;
+
             return (
               <TableRow key={rowIndex} onClick={() => this.handleRowClicked(rowIndex)}>
-                {isOverlayRowIncluded ? (
-                  // @todo: Solve jump in th width when the overlay is toggled.
-                  <td colSpan={head.length}>{overlayRow}</td>
+                {Overlay && isOverlayRowIncluded ? (
+                  <td colSpan={head.length} style={{ padding: 0 }}>
+                    <Overlay indexKey={rowIndex} />
+                  </td>
                 ) : (
                   row.map((cell, cellIndex) => (
                     <TableCell
@@ -293,9 +310,18 @@ class AbstractTable extends Component<Props, State> {
           {groups!.map(({ title, entries }) => (
             <React.Fragment key={title}>
               <TableGroupHead onClick={this.toggleCollapseGroup.bind(this, title)} role="button">
-                <TableHeading colSpan={head.length}>
-                  {title}
-                  <IconArrow isFlipped={collapsedGroups[title]} />
+                <TableHeading colSpan={head.length} style={{ paddingLeft: SPACING.BASE }}>
+                  <Box variant="rowAlign">
+                    <Text as="span" textTransform="uppercase">
+                      {title}
+                    </Text>
+                    <Icon
+                      ml="0.5ch"
+                      type="expandable"
+                      isExpanded={!collapsedGroups[title]}
+                      height="1em"
+                    />
+                  </Box>
                 </TableHeading>
               </TableGroupHead>
               {/* Display group rows if not collapsed. */}
@@ -315,10 +341,6 @@ class AbstractTable extends Component<Props, State> {
       </table>
     );
   }
-
-  private readonly isCurrentColumnSortable = (heading: string) => {
-    return this.getCurrentColumnSortable() === heading;
-  };
 
   private readonly getCurrentColumnSortable = () => {
     const { currentSortColumn } = this.state;

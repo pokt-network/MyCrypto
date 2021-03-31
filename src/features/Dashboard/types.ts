@@ -1,11 +1,12 @@
-import { TURL, ITxType, StoreAsset } from '@types';
+import { ITxType, TURL } from '@types';
+
 export interface Action {
   icon: string;
   faded?: boolean;
   title: string;
   description: string;
   link: string | TURL;
-  assetFilter?(asset: StoreAsset): boolean;
+  filter?(isMobile: boolean): boolean;
 }
 
 enum IStandardTxType {

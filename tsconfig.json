@@ -9,11 +9,11 @@
     "allowJs": true,
     "baseUrl": "./src",
     "paths": {
-      "shared*": ["../shared*"],
-      "types*": ["../shared/types*"],
       "test-utils": ["../jest_config/test-utils"],
       "@fixtures": ["../jest_config/__fixtures__"],
       "@assets/*": ["assets/*"],
+      "@store": ["services/Store/store"],
+      "@store/*": ["services/Store/store/*"],
       "@*": ["./*"]
     },
     "lib": ["esnext", "dom"],
@@ -28,7 +28,7 @@
     "noImplicitAny": true,
     "skipLibCheck": true
   },
-  "include": ["./scripts", "./src/", "./electron-app/", "./shared/", "spec", "./jest_config"],
+  "include": ["./scripts", "./src/", "spec", "./jest_config"],
   "exclude": ["node_modules", "jest_config/__mocks__", "./node-scripts"],
   "awesomeTypescriptLoaderOptions": {
     "transpileOnly": true

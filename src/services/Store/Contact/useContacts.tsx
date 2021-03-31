@@ -1,19 +1,27 @@
-import { useContext, useState } from 'react';
+import { useState } from 'react';
+
 import isEmpty from 'lodash/isEmpty';
 
+import { STATIC_CONTACTS } from '@config';
+import {
+  createContact as createAContact,
+  destroyContact,
+  selectContacts,
+  updateContact as updateAContact,
+  useDispatch,
+  useSelector
+} from '@store';
 import {
   Contact,
   ExtendedContact,
   IAccount,
-  StoreAccount,
-  LSKeys,
-  TUuid,
   NetworkId,
-  TAddress
+  StoreAccount,
+  TAddress,
+  TUuid
 } from '@types';
-import { generateUUID, isSameAddress } from '@utils';
+import { generateDeterministicAddressUUID, isSameAddress } from '@utils';
 
-import { DataContext } from '../DataManager';
 import { useContracts } from '../Contract';
 
 export interface IAddressBookContext {
@@ -21,7 +29,7 @@ export interface IAddressBookContext {
   addressBookRestore: { [name: string]: ExtendedContact | undefined };
   createContact(contact: Contact): void;
   createContactWithID(uuid: TUuid, contact: Contact): void;
-  updateContact(uuid: TUuid, contact: ExtendedContact): void;
+  updateContact(contact: ExtendedContact): void;
   deleteContact(uuid: TUuid): void;
   getContactByAddress(address: string): ExtendedContact | undefined;
   getContactByAddressAndNetworkId(
@@ -33,13 +41,12 @@ export interface IAddressBookContext {
 }
 
 function useContacts() {
-  const { createActions, addressBook } = useContext(DataContext);
+  const contacts = useSelector(selectContacts);
   const { getContractByAddress } = useContracts();
+  const dispatch = useDispatch();
   const [contactRestore, setContactRestore] = useState<{
     [name: string]: ExtendedContact | undefined;
   }>({});
-
-  const model = createActions(LSKeys.ADDRESS_BOOK);
 
   const getContactFromContracts = (address: string): ExtendedContact | undefined => {
     const contract = getContractByAddress(address as TAddress);
@@ -53,26 +60,28 @@ function useContacts() {
     return contact;
   };
 
-  const createContact = (item: Contact) => model.create({ ...item, uuid: generateUUID() });
+  const createContact = (item: Contact) => {
+    const uuid = generateDeterministicAddressUUID(item.network, item.address);
+    dispatch(createAContact({ ...item, uuid }));
+  };
 
-  const createContactWithID = (uuid: TUuid, item: Contact) =>
-    model.createWithID({ uuid, ...item }, uuid);
-
-  const updateContact = (uuid: TUuid, item: ExtendedContact) => model.update(uuid, item);
+  const updateContact = (item: ExtendedContact) => {
+    dispatch(updateAContact(item));
+  };
 
   const deleteContact = (uuid: TUuid) => {
-    const addressBookToDelete = addressBook.find((a) => a.uuid === uuid);
-    if (isEmpty(addressBookToDelete)) {
-      throw new Error('Unable to delete account from address book! No account with id specified.');
+    const contactToDelete = contacts.find((a) => a.uuid === uuid);
+    if (isEmpty(contactToDelete) || !contactToDelete) {
+      throw new Error('Unable to delete contact from address book! No account with id specified.');
     }
 
-    setContactRestore((prevState) => ({ ...prevState, [uuid]: addressBookToDelete }));
-    model.destroy(addressBookToDelete!);
+    setContactRestore((prevState) => ({ ...prevState, [uuid]: contactToDelete }));
+    dispatch(destroyContact(contactToDelete.uuid));
   };
 
   const getContactByAddress = (address: TAddress) => {
     return (
-      addressBook.find((contact: ExtendedContact) =>
+      [...contacts, ...STATIC_CONTACTS].find((contact: ExtendedContact) =>
         isSameAddress(contact.address as TAddress, address)
       ) || getContactFromContracts(address)
     );
@@ -80,7 +89,7 @@ function useContacts() {
 
   const getContactByAddressAndNetworkId = (address: TAddress, networkId: NetworkId) => {
     return (
-      addressBook
+      [...contacts, ...STATIC_CONTACTS]
         .filter((contact: ExtendedContact) => contact.network === networkId)
         .find((contact: ExtendedContact) => isSameAddress(contact.address as TAddress, address)) ||
       getContactFromContracts(address)
@@ -101,15 +110,14 @@ function useContacts() {
     }
 
     const { uuid, ...rest } = contactRecord!;
-    createContactWithID(uuid, rest);
+    createContact(rest);
     setContactRestore((prevState) => ({ ...prevState, [uuid]: undefined }));
   };
 
   return {
-    contacts: addressBook,
+    contacts,
     contactRestore,
     createContact,
-    createContactWithID,
     updateContact,
     deleteContact,
     getContactByAddress,

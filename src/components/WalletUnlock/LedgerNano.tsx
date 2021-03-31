@@ -1,21 +1,20 @@
 import React, { PureComponent } from 'react';
+
 import { Button } from '@mycrypto/ui';
 
-import { Spinner, NewTabLink } from '@components';
+import { Box, BusyBottom, Heading, Icon, LinkApp, Spinner } from '@components';
+import { getDPath, getDPaths, INetworkContext, useNetworks } from '@services';
+import { ChainCodeResponse, WalletFactory } from '@services/WalletService';
 import translate, { Trans, translateRaw } from '@translations';
-import { WalletId, FormData } from '@types';
-import { getDPath, getDPaths, useNetworks, INetworkContext } from '@services';
-import { EXT_URLS } from '@config';
-import { WalletFactory, ChainCodeResponse } from '@services/WalletService';
-import { IS_ELECTRON, withHook } from '@utils';
+import { BusyBottomConfig, DPath, FormData, TAddress, WalletId } from '@types';
+import { withHook } from '@utils';
 
-import UnsupportedNetwork from './UnsupportedNetwork';
 import DeterministicWallets from './DeterministicWallets';
+import UnsupportedNetwork from './UnsupportedNetwork';
 import './LedgerNano.scss';
-import ledgerIcon from '@assets/images/icn-ledger-nano-large.svg';
 
 interface OwnProps {
-  wallet: object;
+  wallet: TObject;
   formData: FormData;
   onUnlock(param: any): void;
 }
@@ -30,7 +29,7 @@ interface State {
 
 type Props = OwnProps;
 
-const WalletService = WalletFactory(WalletId.LEDGER_NANO_S);
+const WalletService = WalletFactory[WalletId.LEDGER_NANO_S];
 
 class LedgerNanoSDecryptClass extends PureComponent<Props & INetworkContext, State> {
   public state: State = {
@@ -49,17 +48,21 @@ class LedgerNanoSDecryptClass extends PureComponent<Props & INetworkContext, Sta
     const network = this.props.getNetworkById(this.props.formData.network);
 
     if (!dPath) {
-      return <UnsupportedNetwork walletType={translateRaw('x_Ledger')} network={network} />;
+      return <UnsupportedNetwork walletType={translateRaw('X_LEDGER')} network={network} />;
     }
 
-    if (!IS_ELECTRON && window.location.protocol !== 'https:') {
+    if (window.location.protocol !== 'https:') {
       return (
         <div className="Panel">
           <div className="alert alert-danger">
             <Trans
               id="UNLOCKING_LEDGER_ONLY_POSSIBLE_ON_OVER_HTTPS"
               variables={{
-                $newTabLink: () => <NewTabLink href="https://mycrypto.com">MyCrypto.com</NewTabLink>
+                $link: () => (
+                  <LinkApp href="https://mycrypto.com" isExternal={true}>
+                    MyCrypto.com
+                  </LinkApp>
+                )
               }}
             />
           </div>
@@ -84,20 +87,17 @@ class LedgerNanoSDecryptClass extends PureComponent<Props & INetworkContext, Sta
       );
     } else {
       return (
-        <div className="Panel">
-          <div className="Panel-title">
+        <Box p="2.5em">
+          <Heading fontSize="32px" textAlign="center" fontWeight="bold">
             {translate('UNLOCK_WALLET')}{' '}
             {translateRaw('YOUR_WALLET_TYPE', { $walletType: translateRaw('X_LEDGER') })}
-          </div>
+          </Heading>
           <div className="LedgerPanel-description-content">
             <div className="LedgerPanel-description">
-              {translate('LEDGER_TIP')}
+              {translate('LEDGER_TIP', { $network: network.id })}
               <div className="LedgerPanel-image">
-                <img src={ledgerIcon} />
+                <Icon type="ledger-icon-lg" />
               </div>
-              {/* <div className={`LedgerDecrypt-error alert alert-danger ${showErr}`}>
-                {error || '-'}
-              </div> */}
               {isLoading ? (
                 <div className="LedgerPanel-loading">
                   <Spinner /> {translate('WALLET_UNLOCKING')}
@@ -113,12 +113,10 @@ class LedgerNanoSDecryptClass extends PureComponent<Props & INetworkContext, Sta
               )}
             </div>
             <div className="LedgerPanel-footer">
-              {translate('LEDGER_REFERRAL_2', { $url: EXT_URLS.LEDGER_REFERRAL.url })}
-              {/*<br />
-              {translate('LEDGER_HELP_LINK')} */}
+              <BusyBottom type={BusyBottomConfig.LEDGER} />
             </div>
           </div>
-        </div>
+        </Box>
       );
     }
   }
@@ -156,8 +154,8 @@ class LedgerNanoSDecryptClass extends PureComponent<Props & INetworkContext, Sta
     this.reset();
   };
 
-  private handleUnlock = (address: string, index: number) => {
-    this.props.onUnlock(WalletService.init(address, this.state.dPath.value, index));
+  private handleUnlock = (address: TAddress, index: number) => {
+    this.props.onUnlock(WalletService.init({ address, dPath: this.state.dPath.value, index }));
   };
 
   private handleNullConnect = (): void => {

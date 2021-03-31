@@ -1,8 +1,8 @@
 import React from 'react';
 
 import { TxReceipt } from '@components/TransactionFlow';
-import { ITxReceipt, ITxConfig } from '@types';
 import { translateRaw } from '@translations';
+import { ITxConfig, ITxReceipt } from '@types';
 
 interface Props {
   txReceipt: ITxReceipt;
@@ -17,7 +17,7 @@ export default function DeployReceipt(props: Props) {
     <TxReceipt
       txReceipt={txReceipt}
       txConfig={txConfig}
-      completeButtonText={translateRaw('DEPLOY_ANOTHER')}
+      completeButton={translateRaw('DEPLOY_ANOTHER')}
       resetFlow={goToFirstStep}
       onComplete={goToFirstStep}
     />

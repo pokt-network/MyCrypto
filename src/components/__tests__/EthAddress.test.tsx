@@ -1,7 +1,8 @@
 import React from 'react';
-import { simpleRender, fireEvent } from 'test-utils';
 
-import { truncate } from '@utils';
+import { fireEvent, simpleRender } from 'test-utils';
+
+import { noOp, truncate } from '@utils';
 
 import EthAddress from '../EthAddress';
 
@@ -30,8 +31,12 @@ describe('EthAddress', () => {
     const element = getByText(truncate(defaultProps.address));
     expect(element).toBeDefined();
 
-    // @ts-ignore
-    navigator.clipboard = { writeText: jest.fn() };
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: noOp
+      }
+    });
+    jest.spyOn(navigator.clipboard, 'writeText');
 
     fireEvent.click(element);
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(defaultProps.address);
@@ -42,8 +47,12 @@ describe('EthAddress', () => {
     const element = getByText(truncate(defaultProps.address));
     expect(element).toBeDefined();
 
-    // @ts-ignore
-    navigator.clipboard = { writeText: jest.fn() };
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: noOp
+      }
+    });
+    jest.spyOn(navigator.clipboard, 'writeText');
 
     fireEvent.click(element);
     expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(0);

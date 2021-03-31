@@ -1,30 +1,28 @@
 import React, { useState } from 'react';
-import uniqBy from 'ramda/src/uniqBy';
-import prop from 'ramda/src/prop';
 
-import { MOONPAY_ASSET_UUIDS } from '@utils';
-import { FormData, WalletId, ExtendedAsset } from '@types';
-import translate, { translateRaw, Trans } from '@translations';
-import { Spinner, Button, RouterLink } from '@components';
+import prop from 'ramda/src/prop';
+import uniqBy from 'ramda/src/uniqBy';
+
 import {
-  EXT_URLS,
-  TREZOR_DERIVATION_PATHS,
-  DEFAULT_NUM_OF_ACCOUNTS_TO_SCAN,
   DEFAULT_GAP_TO_SCAN_FOR,
-  DPathsList
+  DEFAULT_NUM_OF_ACCOUNTS_TO_SCAN,
+  DPathsList,
+  TREZOR_DERIVATION_PATHS
 } from '@config';
 import {
-  getNetworkById,
   getAssetByUUID,
-  useDeterministicWallet,
+  getDPaths,
+  getNetworkById,
   useAssets,
+  useDeterministicWallet,
   useNetworks
 } from '@services';
+import { translateRaw } from '@translations';
+import { ExtendedAsset, FormData, WalletId } from '@types';
 
-import ConnectTrezor from '@assets/images/icn-connect-trezor-new.svg';
-import UnsupportedNetwork from './UnsupportedNetwork';
-import './NewTrezor.scss';
 import DeterministicWallet from './DeterministicWallet';
+import HardwareWalletUI from './Hardware';
+import UnsupportedNetwork from './UnsupportedNetwork';
 
 //@todo: conflicts with comment in walletDecrypt -> onUnlock method
 interface OwnProps {
@@ -33,17 +31,20 @@ interface OwnProps {
 }
 
 const TrezorDecrypt = ({ formData, onUnlock }: OwnProps) => {
-  const dpaths = uniqBy(prop('value'), TREZOR_DERIVATION_PATHS);
+  const { networks } = useNetworks();
+  const { assets } = useAssets();
+  const network = getNetworkById(formData.network, networks);
+  const baseAsset = getAssetByUUID(assets)(network.baseAsset) as ExtendedAsset;
+  const dpaths = uniqBy(prop('value'), [
+    ...getDPaths([network], WalletId.TREZOR_NEW),
+    ...TREZOR_DERIVATION_PATHS
+  ]);
   const numOfAccountsToCheck = DEFAULT_NUM_OF_ACCOUNTS_TO_SCAN;
   const extendedDPaths = dpaths.map((dpath) => ({
     ...dpath,
     offset: 0,
     numOfAddresses: numOfAccountsToCheck
   }));
-  const { networks } = useNetworks();
-  const { assets } = useAssets();
-  const network = getNetworkById(formData.network, networks);
-  const baseAsset = getAssetByUUID(assets)(network.baseAsset) as ExtendedAsset;
   const defaultDPath = network.dPaths[WalletId.TREZOR] || DPathsList.ETH_TREZOR;
   const [assetToUse, setAssetToUse] = useState(baseAsset);
   const {
@@ -53,8 +54,6 @@ const TrezorDecrypt = ({ formData, onUnlock }: OwnProps) => {
     generateFreshAddress,
     addDPaths
   } = useDeterministicWallet(extendedDPaths, WalletId.TREZOR_NEW, DEFAULT_GAP_TO_SCAN_FOR);
-  // @todo -> Figure out which assets to display in dropdown. Selector is heavy with 900+ assets in it. Loads slow af.
-  const filteredAssets = assets.filter(({ uuid }) => MOONPAY_ASSET_UUIDS.includes(uuid)); // @todo - fix this.
 
   const handleNullConnect = () => {
     requestConnection(network, assetToUse);
@@ -67,7 +66,7 @@ const TrezorDecrypt = ({ formData, onUnlock }: OwnProps) => {
 
   if (!network) {
     // @todo: make this better.
-    return <UnsupportedNetwork walletType={translateRaw('x_Ledger')} network={network} />;
+    return <UnsupportedNetwork walletType={translateRaw('X_TREZOR')} network={network} />;
   }
 
   if (state.isConnected && state.asset && (state.queuedAccounts || state.finishedAccounts)) {
@@ -75,7 +74,7 @@ const TrezorDecrypt = ({ formData, onUnlock }: OwnProps) => {
       <DeterministicWallet
         state={state}
         defaultDPath={defaultDPath}
-        assets={filteredAssets}
+        assets={assets}
         assetToUse={assetToUse}
         network={network}
         updateAsset={updateAsset}
@@ -87,52 +86,12 @@ const TrezorDecrypt = ({ formData, onUnlock }: OwnProps) => {
     );
   } else {
     return (
-      <div className="Panel">
-        <div className="Panel-title">
-          {translate('UNLOCK_WALLET')}{' '}
-          {translateRaw('YOUR_WALLET_TYPE', { $walletType: translateRaw('X_TREZOR') })}
-        </div>
-        <div className="TrezorDecrypt">
-          <div className="TrezorDecrypt-description">
-            {translate('TREZOR_TIP')}
-            <div className="TrezorDecrypt-img">
-              <img src={ConnectTrezor} />
-            </div>
-          </div>
-          {/* <div className={`TrezorDecrypt-error alert alert-danger ${showErr}`}>
-            {error || '-'}
-          </div> */}
-
-          {state.isConnecting ? (
-            <div className="TrezorDecrypt-loading">
-              <Spinner /> {translate('WALLET_UNLOCKING')}
-            </div>
-          ) : (
-            <Button
-              className="TrezorDecrypt-button"
-              onClick={() => handleNullConnect()}
-              disabled={state.isConnecting}
-            >
-              {translate('ADD_TREZOR_SCAN')}
-            </Button>
-          )}
-          <div className="TrezorDecrypt-footer">
-            {translate('ORDER_TREZOR', { $url: EXT_URLS.TREZOR_REFERRAL.url })} <br />
-            <Trans
-              id="USE_OLD_INTERFACE"
-              variables={{
-                $link: () => (
-                  <RouterLink to="/add-account/trezor">
-                    {translateRaw('TRY_OLD_INTERFACE')}
-                  </RouterLink>
-                )
-              }}
-            />
-            <br />
-            {translate('HOWTO_TREZOR')}
-          </div>
-        </div>
-      </div>
+      <HardwareWalletUI
+        network={network}
+        state={state}
+        handleNullConnect={handleNullConnect}
+        walletId={WalletId.TREZOR_NEW}
+      />
     );
   }
 };

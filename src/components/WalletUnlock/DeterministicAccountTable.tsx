@@ -1,24 +1,28 @@
 import React from 'react';
-import styled, { css } from 'styled-components';
+
 import { Identicon } from '@mycrypto/ui';
+import styled, { css } from 'styled-components';
 
 import {
+  Amount,
+  Box,
+  Button,
   EditableAccountLabel,
   EthAddress,
-  Typography,
-  LinkOut,
-  Button,
-  Tooltip,
   Icon,
-  Amount
+  LinkApp,
+  Spinner,
+  Tooltip,
+  Typography
 } from '@components';
-import { DWAccountDisplay, fromTokenBase, useContacts } from '@services';
-import { COLORS, SPACING, BREAK_POINTS } from '@theme';
-import { Network, ExtendedAsset, TAddress } from '@types';
-import { isSameAddress, useScreenSize } from '@utils';
-import translate, { Trans } from '@translations';
 import { DEFAULT_GAP_TO_SCAN_FOR } from '@config';
-import BN from 'bn.js';
+import { DWAccountDisplay, useContacts } from '@services';
+import { BREAK_POINTS, COLORS, SPACING } from '@theme';
+import translate, { Trans } from '@translations';
+import { ExtendedAsset, Network, TAddress } from '@types';
+import { bigify, buildAddressUrl, fromTokenBase, isSameAddress, useScreenSize } from '@utils';
+
+import { Downloader } from '../Downloader';
 
 interface DeterministicTableProps {
   isComplete: boolean;
@@ -30,10 +34,10 @@ interface DeterministicTableProps {
     derivationPath: string;
   }[];
   freshAddressIndex: number;
+  csv: string;
   generateFreshAddress(): void;
   onSelect(account: DWAccountDisplay): void;
   handleUpdate(asset: ExtendedAsset): void;
-  downloadCSV(): void;
 }
 
 const Table = styled.div`
@@ -240,18 +244,12 @@ const NoAccountAction = styled.span`
   }
 `;
 
-const Loader = styled.div`
-  margin-top: calc(-6rem + 100px);
-  padding-bottom: 6rem;
-  margin-bottom: ${SPACING.BASE};
-  transform: scale(4.75);
-
-  &&::before {
-    border-width: 0.75px;
-  }
-
-  &&::after {
-    border-width: 0.75px;
+const SDownloader = styled(Downloader)`
+  color: ${COLORS.BLUE_MYC};
+  cursor: pointer;
+  font-weight: bold;
+  &:hover {
+    color: ${COLORS.BLUE_LIGHT_DARKISH};
   }
 `;
 
@@ -265,7 +263,7 @@ const DeterministicTable = ({
   onSelect,
   generateFreshAddress,
   handleUpdate,
-  downloadCSV
+  csv
 }: DeterministicTableProps) => {
   const { getContactByAddressAndNetworkId } = useContacts();
   const { isMobile } = useScreenSize();
@@ -307,9 +305,9 @@ const DeterministicTable = ({
               <Trans id="DETERMINISTIC_ALTERNATIVES_3" />
               <br />
               <Trans id="DETERMINISTIC_ALTERNATIVES_4" />{' '}
-              <NoAccountAction onClick={downloadCSV}>
+              <SDownloader data={csv} fileName="accounts.csv" mime="text/csv">
                 <Trans id="DETERMINISTIC_ALTERNATIVES_5" />
-              </NoAccountAction>
+              </SDownloader>
               .
             </Typography>
             <Button onClick={() => handleUpdate(asset)} fullwidth={isMobile}>
@@ -319,7 +317,9 @@ const DeterministicTable = ({
           </NoAccountContainer>
         ) : (
           <NoAccountContainer>
-            <Loader className="loading" />
+            <Box mb={SPACING.BASE} mt={'calc(-6rem + 100px)'}>
+              <Spinner color="brand" size={5} />
+            </Box>
             <Trans id="DETERMINISTIC_SCANNING" variables={{ $asset: () => asset.ticker }} />
           </NoAccountContainer>
         )
@@ -351,12 +351,7 @@ const DeterministicTable = ({
                     <Amount
                       assetValue={
                         account.balance
-                          ? parseFloat(
-                              fromTokenBase(
-                                new BN(account.balance.toString()),
-                                asset.decimal
-                              ).toString()
-                            ).toFixed(4)
+                          ? bigify(fromTokenBase(account.balance, asset.decimal)).toFixed(4)
                           : '0.0000'
                       }
                     />
@@ -366,13 +361,12 @@ const DeterministicTable = ({
               </MobileColumn>
               <LinkContainer>
                 <Tooltip tooltip={'View on Etherscan'}>
-                  <LinkOut
-                    link={
-                      network.blockExplorer
-                        ? network.blockExplorer.addressUrl(account.address)
-                        : `https://ethplorer.io/address/${account.address}`
-                    }
-                  />
+                  <LinkApp
+                    href={buildAddressUrl(network.blockExplorer, account.address)}
+                    isExternal={true}
+                  >
+                    <Icon type="link-out" />
+                  </LinkApp>
                 </Tooltip>
               </LinkContainer>
             </Row>
@@ -381,7 +375,7 @@ const DeterministicTable = ({
             onClick={generateFreshAddress}
             disabled={!isComplete || freshAddressIndex >= DEFAULT_GAP_TO_SCAN_FOR}
           >
-            <Icon type="add" />
+            <Icon type="add" color="none" width="32px" />
 
             {!isComplete ? (
               <Tooltip tooltip={<Trans id="DETERMINISTIC_WAIT_FOR_SCAN" />}>

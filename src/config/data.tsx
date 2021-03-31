@@ -1,36 +1,18 @@
-import React from 'react'; // For ANNOUNCEMENT_MESSAGE jsx
+import { NetworkId, TURL } from '@types';
 
-import { TURL } from '@types';
-import { makeExplorer } from '@services/EthService/utils/makeExplorer';
 import packageJson from '../../package.json';
-import translate from '@translations';
 
 // Displays in the footer
 export const VERSION = packageJson.version;
 export const N_FACTOR = 8192;
 
-// Displays at the top of the site, make message empty string to remove.
-// Type can be primary, warning, danger, success, info, or blank for grey.
-// Message must be a JSX element if you want to use HTML.
-export const ANNOUNCEMENT_TYPE = '';
-export const ANNOUNCEMENT_MESSAGE = (
-  <React.Fragment>{translate('ANNOUNCEMENT_MESSAGE')}</React.Fragment>
-);
-
 const etherScan = 'https://etherscan.io';
 const blockChainInfo = 'https://blockchain.info';
-export const ethPlorer = 'https://ethplorer.io';
+export const ETHPLORER_URL = 'https://ethplorer.io';
 
 export const ETHTxExplorer = (txHash: string): string => `${etherScan}/tx/${txHash}`;
 export const BTCTxExplorer = (txHash: string): string => `${blockChainInfo}/tx/${txHash}`;
 export const ETHAddressExplorer = (address: string): string => `${etherScan}/address/${address}`;
-export const ETHTokenExplorer = (address: string): string => `${ethPlorer}/address/${address}`;
-
-export const etherChainExplorerInst = makeExplorer({
-  name: 'Etherchain',
-  origin: 'https://www.etherchain.org',
-  addressPath: 'account'
-});
 
 export const donationAddressMap = {
   BTC: '32oirLEzZRhi33RCXDF9WHJjEb8RsrSss3',
@@ -53,17 +35,16 @@ export const SUPPORT_EMAIL = 'support@mycrypto.com';
 export const LATEST_NEWS_URL = 'https://medium.com/@mycrypto' as TURL;
 export const CRYPTOSCAMDB = 'https://cryptoscamdb.org';
 
-// Handler address will change if the trade contract changes.
-// Can also access handler by calling `approvalHandler()` on the trade contract.
-// Also update eth contracts when updating DexAG addresses
-export const DEXAG_MYC_TRADE_CONTRACT = '0x3d7b19C37d422B43c07C7Ba6353ED2D1689540FD'; //'0xA65440C4CC83D70b44cF244a0da5373acA16a9cb';
-export const DEXAG_MYC_HANDLER_CONTRACT = '0xae0A30ac8C76d85f1E76A3EbDcEdc3047e0da456';
-export const DEX_BASE_URL = 'https://api-v2.dex.ag/';
+export const DEX_BASE_URL = 'https://swap.mycryptoapi.com/';
+export const DEX_FEE_RECIPIENT = '0xD8D46494e200Fa585FC98f86e6A5Ea0DC1F18aD0';
+export const DEX_TRADE_EXPIRATION = 31; // in seconds
 
 export const MOONPAY_PUBLIC_API_KEY = 'pk_live_Fi1kufUL8EflbE49vbZRKa71S2a4Y1D';
 export const MOONPAY_API_QUERYSTRING = `?apiKey=${MOONPAY_PUBLIC_API_KEY}&colorCode=%23163150`;
 export const BUY_MYCRYPTO_WEBSITE = 'https://buy.mycrypto.com' as TURL;
 export const MOONPAY_SIGNER_API = 'https://moonpay.mycryptoapi.com/sign';
+export const UNISWAP_UNI_CLAIM_API = 'https://uni.mycryptoapi.com/claims';
+export const UNISWAP_TOKEN_DISTRIBUTOR = '0x090D4613473dEE047c3f2706764f49E0821D256e';
 
 export const LETS_ENCRYPT_URL = 'https://letsencrypt.org/';
 
@@ -73,3 +54,5 @@ export enum Theme {
 }
 
 export type ThemeType = 'dark' | 'light';
+
+export const FAUCET_NETWORKS: NetworkId[] = ['Ropsten', 'Rinkeby', 'Kovan', 'Goerli'];

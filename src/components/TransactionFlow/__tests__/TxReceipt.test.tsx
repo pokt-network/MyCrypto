@@ -1,22 +1,18 @@
 import React from 'react';
-import { simpleRender, fireEvent } from 'test-utils';
-import { MemoryRouter as Router } from 'react-router-dom';
 
-import { fSettings, fTxConfig, fAccount, fTxReceipt } from '@fixtures';
-import { devContacts } from '@database/seed';
-import { ExtendedContact, ITxType, ITxStatus } from '@types';
-import { truncate, noOp } from '@utils';
-import { translateRaw } from '@translations';
-import { ZAPS_CONFIG } from '@features/DeFiZap/config';
-import { MEMBERSHIP_CONFIG } from '@features/PurchaseMembership/config';
+import { fireEvent, simpleRender } from 'test-utils';
+
 import { Fiats } from '@config';
-import { DataContext } from '@services';
+import { fAccount, fContacts, fSettings, fTxConfig, fTxReceipt } from '@fixtures';
+import { translateRaw } from '@translations';
+import { ExtendedContact, ITxStatus } from '@types';
+import { bigify, noOp, truncate } from '@utils';
 
-import { TxReceiptUI } from '../TxReceipt';
 import { constructSenderFromTxConfig } from '../helpers';
+import { TxReceiptUI } from '../TxReceipt';
 
-const senderContact = Object.values(devContacts)[0] as ExtendedContact;
-const recipientContact = Object.values(devContacts)[1] as ExtendedContact;
+const senderContact = Object.values(fContacts)[0] as ExtendedContact;
+const recipientContact = Object.values(fContacts)[1] as ExtendedContact;
 
 const defaultProps: React.ComponentProps<typeof TxReceiptUI> = {
   settings: fSettings,
@@ -29,20 +25,14 @@ const defaultProps: React.ComponentProps<typeof TxReceiptUI> = {
   timestamp: 1583266291,
   displayTxReceipt: fTxReceipt,
   resetFlow: noOp,
+  handleTxCancelRedirect: noOp,
+  handleTxSpeedUpRedirect: noOp,
   baseAssetRate: 250,
   fiat: Fiats.USD
 };
 
 function getComponent(props: React.ComponentProps<typeof TxReceiptUI>) {
-  return simpleRender(
-    <Router>
-      <DataContext.Provider
-        value={{ addressBook: [], contracts: [], createActions: jest.fn() } as any}
-      >
-        <TxReceiptUI {...props} />
-      </DataContext.Provider>
-    </Router>
-  );
+  return simpleRender(<TxReceiptUI {...props} />);
 }
 
 describe('TxReceipt', () => {
@@ -59,9 +49,9 @@ describe('TxReceipt', () => {
   });
 
   test('it displays the correct basic details', async () => {
-    const { getByText } = getComponent(defaultProps);
+    const { getByText, getByTestId } = getComponent(defaultProps);
     expect(getByText(truncate(defaultProps.displayTxReceipt!.hash))).toBeDefined();
-    expect(getByText(defaultProps.txStatus, { exact: false })).toBeDefined();
+    expect(getByTestId(defaultProps.txStatus)).toBeDefined();
   });
 
   test('it displays the correct advanced details', async () => {
@@ -76,39 +66,16 @@ describe('TxReceipt', () => {
 
   test('it displays the correct send value', async () => {
     const { getByText } = getComponent(defaultProps);
-    expect(getByText(parseFloat(fTxConfig.amount).toFixed(6), { exact: false })).toBeDefined();
+    expect(getByText(bigify(fTxConfig.amount).toFixed(6), { exact: false })).toBeDefined();
   });
 
   test('it displays pending state', async () => {
-    const { getAllByText } = getComponent({
+    const { getAllByTestId } = getComponent({
       ...defaultProps,
       txStatus: ITxStatus.PENDING,
       displayTxReceipt: undefined
     });
-    expect(getAllByText(translateRaw('PENDING'))).toBeDefined();
-  });
-
-  test('it displays DeFiZap info', async () => {
-    const zap = ZAPS_CONFIG.compounddai;
-    const { getByText } = getComponent({
-      ...defaultProps,
-      zapSelected: zap,
-      txType: ITxType.DEFIZAP
-    });
-    expect(getByText(zap.title)).toBeDefined();
-    expect(getByText(zap.contractAddress)).toBeDefined();
-    expect(getByText(zap.platformsUsed[0], { exact: false })).toBeDefined();
-  });
-
-  test('it displays membership info', async () => {
-    const membership = MEMBERSHIP_CONFIG.lifetime;
-    const { getByText } = getComponent({
-      ...defaultProps,
-      membershipSelected: membership,
-      txType: ITxType.PURCHASE_MEMBERSHIP
-    });
-    expect(getByText(translateRaw('NEW_MEMBER'))).toBeDefined();
-    expect(getByText(membership.contractAddress)).toBeDefined();
+    expect(getAllByTestId('PENDING')).toBeDefined();
   });
 
   test('it displays PTX info', async () => {

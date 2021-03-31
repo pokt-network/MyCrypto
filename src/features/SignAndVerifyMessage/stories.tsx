@@ -1,23 +1,19 @@
-import { IStory, WalletId } from '@types';
-import { IS_DEV, IS_ELECTRON, hasWeb3Provider } from '@utils';
 import {
   LedgerNanoSDecrypt,
-  KeystoreDecrypt,
-  MnemonicDecrypt,
-  PrivateKeyDecrypt,
-  Web3ProviderDecrypt,
-  Web3ProviderInstall,
+  TrezorDecrypt,
   WalletConnectDecrypt,
-  TrezorDecrypt
+  Web3ProviderDecrypt
 } from '@components';
+import { withWalletConnect } from '@services/WalletService';
+import { IStory, WalletId } from '@types';
 
 export const getStories = (): IStory[] => [
   {
     name: WalletId.METAMASK,
-    steps: hasWeb3Provider() ? [Web3ProviderDecrypt] : [Web3ProviderInstall]
+    steps: [Web3ProviderDecrypt]
   },
   {
-    name: WalletId.LEDGER_NANO_S,
+    name: WalletId.LEDGER_NANO_S_NEW,
     steps: [LedgerNanoSDecrypt]
   },
   {
@@ -26,21 +22,6 @@ export const getStories = (): IStory[] => [
   },
   {
     name: WalletId.WALLETCONNECT,
-    steps: [WalletConnectDecrypt]
-  },
-  {
-    name: WalletId.PRIVATE_KEY,
-    steps: [PrivateKeyDecrypt],
-    isDisabled: IS_DEV ? false : !IS_ELECTRON
-  },
-  {
-    name: WalletId.KEYSTORE_FILE,
-    steps: [KeystoreDecrypt],
-    isDisabled: IS_DEV ? false : !IS_ELECTRON
-  },
-  {
-    name: WalletId.MNEMONIC_PHRASE,
-    steps: [MnemonicDecrypt],
-    isDisabled: IS_DEV ? false : !IS_ELECTRON
+    steps: [withWalletConnect(WalletConnectDecrypt)]
   }
 ];

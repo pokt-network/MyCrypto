@@ -1,36 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import { withRouter, RouteComponentProps } from 'react-router-dom';
-import styled from 'styled-components';
-import * as Yup from 'yup';
+
 import { Formik } from 'formik';
+import { RouteComponentProps, withRouter } from 'react-router-dom';
+import styled from 'styled-components';
+import { object, string } from 'yup';
 
 import {
-  NetworkSelectDropdown,
-  InputField,
-  InlineMessage,
   Button,
-  ContractLookupField
+  ContractLookupField,
+  InlineMessage,
+  InputField,
+  NetworkSelector
 } from '@components';
+import { getNetworkById, isValidENSName, isValidETHAddress, useNetworks } from '@services';
+import { BREAK_POINTS, COLORS } from '@theme';
+import { translateRaw } from '@translations';
 import {
   Contract,
-  StoreAccount,
-  ITxConfig,
   ExtendedContract,
-  Network,
   IReceiverAddress,
+  ITxConfig,
+  Network,
+  StoreAccount,
   TAddress
 } from '@types';
-import { COLORS, BREAK_POINTS } from '@theme';
-import { translateRaw } from '@translations';
-import { isValidETHAddress } from '@services/EthService/validators';
-import { getNetworkById, useNetworks } from '@services';
-import { isValidENSName } from '@services/EthService';
 import { isSameAddress } from '@utils';
 
-import GeneratedInteractionForm from './GeneratedInteractionForm';
 import { CUSTOM_CONTRACT_ADDRESS } from '../constants';
 import { ABIItem } from '../types';
 import { getParsedQueryString } from '../utils';
+import GeneratedInteractionForm from './GeneratedInteractionForm';
 
 const { BLUE_BRIGHT, WHITE, BLUE_LIGHT } = COLORS;
 const { SCREEN_SM } = BREAK_POINTS;
@@ -136,16 +135,16 @@ interface Props {
   displayGeneratedForm(visible: boolean): void;
   handleInteractionFormSubmit(submitedFunction: ABIItem): any;
   goToNextStep(): void;
-  handleInteractionFormWriteSubmit(submitedFunction: ABIItem): Promise<object>;
+  handleInteractionFormWriteSubmit(submitedFunction: ABIItem): Promise<TObject>;
   handleAccountSelected(account: StoreAccount): void;
   handleSaveContractSubmit(): void;
   handleGasSelectorChange(payload: ITxConfig): void;
   handleDeleteContract(contractUuid: string): void;
 }
 
-const FormSchema = Yup.object().shape({
-  address: Yup.object({
-    value: Yup.string().test(
+const FormSchema = object().shape({
+  address: object({
+    value: string().test(
       'check-eth-address',
       translateRaw('TO_FIELD_ERROR'),
       (value) => isValidETHAddress(value) || isValidENSName(value)
@@ -153,7 +152,7 @@ const FormSchema = Yup.object().shape({
   }).required(translateRaw('REQUIRED'))
 });
 
-type CombinedProps = RouteComponentProps<{}> & Props;
+type CombinedProps = RouteComponentProps & Props;
 
 function Interact(props: CombinedProps) {
   const {
@@ -265,7 +264,8 @@ function Interact(props: CombinedProps) {
       // Hack as we don't really use Formik for this flow
       onSubmit={() => undefined}
     >
-      {({ values, errors, touched, setFieldValue, setFieldError, setFieldTouched }) => {
+      {({ values, errors, touched, setFieldValue, setFieldError, setFieldTouched, resetForm }) => {
+        /* eslint-disable react-hooks/rules-of-hooks */
         useEffect(() => {
           if (
             !getNetworkById(networkIdFromUrl, networks) ||
@@ -297,14 +297,16 @@ function Interact(props: CombinedProps) {
 
           setError(undefined);
         }, [contract]);
+        /* eslint-enable react-hooks/rules-of-hooks */
 
         return (
           <>
             <NetworkSelectorWrapper>
-              <NetworkSelectDropdown
+              <NetworkSelector
                 network={network.id}
                 onChange={(networkId) => {
                   handleNetworkSelected(networkId);
+                  resetForm();
                 }}
               />
             </NetworkSelectorWrapper>
@@ -328,7 +330,7 @@ function Interact(props: CombinedProps) {
                   isResolvingName={isResolvingName}
                   setIsResolvingDomain={setIsResolvingDomain}
                   onSelect={(option) => {
-                    // @ts-ignore
+                    // @ts-expect-error: Contract vs IReceiverAddress. @todo: this is a bug.
                     handleContractSelected(option);
 
                     handleAddressOrDomainChanged(option.value);
@@ -388,7 +390,12 @@ function Interact(props: CombinedProps) {
             </FieldWrapper>
 
             <ButtonWrapper>
-              <Button color={WHITE} disabled={wasContractInteracted} onClick={submitInteract}>
+              <Button
+                color={WHITE}
+                disabled={wasContractInteracted}
+                onClick={submitInteract}
+                fullwidth={true}
+              >
                 {translateRaw('INTERACT_WITH_CONTRACT')}
               </Button>
             </ButtonWrapper>

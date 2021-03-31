@@ -1,17 +1,18 @@
-import React, { useState, useContext } from 'react';
-import { withRouter, RouteComponentProps } from 'react-router-dom';
+import React, { useContext, useState } from 'react';
+
+import { RouteComponentProps, withRouter } from 'react-router-dom';
 import styled from 'styled-components';
 
-import { translateRaw } from '@translations';
 import { ExtendedContentPanel, Tabs, WALLET_STEPS } from '@components';
 import { ROUTE_PATHS } from '@config';
-import { useStateReducer } from '@utils';
-import { ISignedTx, IPendingTxReceipt, Tab } from '@types';
-import { BREAK_POINTS } from '@theme';
 import { StoreContext } from '@services';
+import { BREAK_POINTS } from '@theme';
+import { translateRaw } from '@translations';
+import { IPendingTxReceipt, ISignedTx, Tab } from '@types';
+import { useStateReducer } from '@utils';
 
-import { deployContractsInitialState, DeployContractsFactory } from './stateFactory';
 import { Deploy, DeployConfirm, DeployReceipt } from './components';
+import { DeployContractsFactory, deployContractsInitialState } from './stateFactory';
 import { DeployContractsState } from './types';
 
 const { SCREEN_XS } = BREAK_POINTS;
@@ -45,9 +46,10 @@ const TabsWrapper = styled.div`
   width: fit-content;
 `;
 
-const DeployContractsFlow = (props: RouteComponentProps<{}>) => {
+export const DeployContractsFlow = ({ history, location }: RouteComponentProps) => {
   const [step, setStep] = useState(0);
-  const { defaultAccount } = useContext(StoreContext);
+  const { getDefaultAccount } = useContext(StoreContext);
+  const defaultAccount = getDefaultAccount();
   const {
     handleNetworkSelected,
     handleDeploySubmit,
@@ -62,7 +64,6 @@ const DeployContractsFlow = (props: RouteComponentProps<{}>) => {
   });
 
   const { account }: DeployContractsState = deployContractsState;
-  const { history, location } = props;
 
   const goToFirstStep = () => {
     setStep(0);

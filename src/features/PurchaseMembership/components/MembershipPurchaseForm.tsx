@@ -1,35 +1,49 @@
 import React, { useContext, useEffect } from 'react';
-import styled from 'styled-components';
-import { Formik, Form, Field, FieldProps } from 'formik';
-import isEmpty from 'lodash/isEmpty';
-import * as Yup from 'yup';
 
-import translate, { translateRaw } from '@translations';
-import { SPACING } from '@theme';
-import { IAccount, Network, StoreAccount, Asset, TUuid } from '@types';
-import { AccountSelector, InlineMessage, AmountInput, Button } from '@components';
+import { Field, FieldProps, Form, Formik } from 'formik';
+import isEmpty from 'lodash/isEmpty';
+import { connect, ConnectedProps } from 'react-redux';
+import styled from 'styled-components';
+import { Overwrite } from 'utility-types';
+import { number, object } from 'yup';
+
+import {
+  AccountSelector,
+  AmountInput,
+  Button,
+  DemoGatewayBanner,
+  InlineMessage
+} from '@components';
+import { DEFAULT_NETWORK, ETHUUID, XDAI_NETWORK, XDAIUUID } from '@config';
 import { validateAmountField } from '@features/SendAssets/components/validators/validators';
-import { isEthereumAccount } from '@services/Store/Account/helpers';
-import { StoreContext, useAssets, useNetworks } from '@services/Store';
+import { getAccountsWithAssetBalance } from '@features/SwapAssets/helpers';
 import { fetchGasPriceEstimates } from '@services/ApiService';
 import { getNonce } from '@services/EthService';
-import { ETHUUID, noOp } from '@utils';
-import { getAccountsWithAssetBalance } from '@features/SwapAssets/helpers';
+import { StoreContext, useAssets, useNetworks } from '@services/Store';
+import { isAccountInNetwork, isEthereumAccount } from '@services/Store/Account/helpers';
+import { AppState, getIsDemoMode } from '@store';
+import { SPACING } from '@theme';
+import translate, { translateRaw } from '@translations';
+import { Asset, IAccount, Network, StoreAccount, TUuid } from '@types';
+import { noOp } from '@utils';
 
-import MembershipSelector from './MembershipSelector';
+import { IMembershipConfig, IMembershipId, MEMBERSHIP_CONFIG } from '../config';
 import { MembershipPurchaseState, MembershipSimpleTxFormFull } from '../types';
-import { IMembershipId, IMembershipConfig, MEMBERSHIP_CONFIG } from '../config';
+import MembershipSelector from './MembershipSelector';
 
-interface Props extends MembershipPurchaseState {
+interface MembershipProps extends MembershipPurchaseState {
   isSubmitting: boolean;
+  error?: Error;
   onComplete(fields: any): void;
   handleUserInputFormSubmit(fields: any): void;
 }
 
 interface UIProps {
-  network: Network;
+  relevantNetworks: Network[];
   relevantAccounts: StoreAccount[];
   isSubmitting: boolean;
+  error?: CustomError;
+  isDemoMode: boolean;
   onComplete(fields: any): void;
 }
 
@@ -54,17 +68,23 @@ const FormFieldSubmitButton = styled(Button)`
   }
 `;
 
-const MembershipForm = ({ isSubmitting, onComplete }: Props) => {
+const MembershipForm = ({ isSubmitting, error, isDemoMode, onComplete }: Props) => {
   const { accounts } = useContext(StoreContext);
   const { networks } = useNetworks();
-  const network = networks.find((n) => n.baseAsset === ETHUUID) as Network;
-  const relevantAccounts = accounts.filter(isEthereumAccount);
+  const relevantNetworks = networks.filter((n) =>
+    [ETHUUID, XDAIUUID].includes(n.baseAsset)
+  ) as Network[];
+  const relevantAccounts = accounts.filter(
+    (account) => isEthereumAccount(account) || isAccountInNetwork(account, XDAI_NETWORK)
+  );
 
   return (
     <MembershipFormUI
       isSubmitting={isSubmitting}
-      network={network}
+      error={error}
+      relevantNetworks={relevantNetworks}
       relevantAccounts={relevantAccounts}
+      isDemoMode={isDemoMode}
       onComplete={onComplete}
     />
   );
@@ -72,15 +92,18 @@ const MembershipForm = ({ isSubmitting, onComplete }: Props) => {
 
 export const MembershipFormUI = ({
   isSubmitting,
-  network,
+  error,
+  relevantNetworks,
   relevantAccounts,
+  isDemoMode,
   onComplete
 }: UIProps) => {
   const { getAssetByUUID } = useAssets();
-  const { defaultAccount } = useContext(StoreContext);
-  const defaultMembership = MEMBERSHIP_CONFIG[IMembershipId.sixmonths];
+  const { getDefaultAccount } = useContext(StoreContext);
+  const defaultAccount = getDefaultAccount();
+  const defaultMembership = MEMBERSHIP_CONFIG[IMembershipId.twelvemonths];
   const defaultAsset = (getAssetByUUID(defaultMembership.assetUUID as TUuid) || {}) as Asset;
-  const initialFormikValues: MembershipSimpleTxFormFull = {
+  const initialFormikValues: Overwrite<MembershipSimpleTxFormFull, { account?: StoreAccount }> = {
     membershipSelected: defaultMembership,
     account: defaultAccount,
     amount: defaultMembership.price,
@@ -89,11 +112,11 @@ export const MembershipFormUI = ({
     gasPrice: '20',
     address: '',
     gasLimit: '',
-    network
+    network: (relevantNetworks.find(({ id }) => id === DEFAULT_NETWORK) as unknown) as Network
   };
 
-  const MembershipFormSchema = Yup.object().shape({
-    amount: Yup.number()
+  const MembershipFormSchema = object().shape({
+    amount: number()
       .min(0, translateRaw('ERROR_0'))
       .required(translateRaw('REQUIRED'))
       .typeError(translateRaw('ERROR_0'))
@@ -102,6 +125,7 @@ export const MembershipFormUI = ({
 
   return (
     <div>
+      {isDemoMode && <DemoGatewayBanner />}
       <Formik
         enableReinitialize={true}
         initialValues={initialFormikValues}
@@ -129,6 +153,7 @@ export const MembershipFormUI = ({
             amount
           );
 
+          // eslint-disable-next-line react-hooks/rules-of-hooks
           useEffect(() => {
             if (
               amount &&
@@ -141,7 +166,6 @@ export const MembershipFormUI = ({
               setFieldValue('account', undefined);
             }
           }, [amount, asset]);
-
           return (
             <Form>
               <FormFieldItem>
@@ -156,11 +180,15 @@ export const MembershipFormUI = ({
                       name={field.name}
                       value={field.value}
                       onSelect={(option: IMembershipConfig) => {
+                        const asset = getAssetByUUID(option.assetUUID as TUuid);
+                        const network =
+                          asset && relevantNetworks.find(({ id }) => asset.networkId === id);
                         // if this gets deleted, it no longer shows as selected on interface,
                         // would like to set only object keys that are needed instead of full object
                         form.setFieldValue('membershipSelected', option);
                         form.setFieldValue('amount', option.price);
-                        form.setFieldValue('asset', getAssetByUUID(option.assetUUID as TUuid));
+                        form.setFieldValue('asset', asset);
+                        network && form.setFieldValue('network', network);
                       }}
                     />
                   )}
@@ -218,6 +246,7 @@ export const MembershipFormUI = ({
               </FormFieldItem>
               <FormFieldSubmitButton
                 type="submit"
+                disabled={isDemoMode || !isValid || !selectedAccount}
                 loading={isSubmitting}
                 onClick={() => {
                   if (isValid) {
@@ -229,6 +258,13 @@ export const MembershipFormUI = ({
               >
                 {translateRaw('BUY_MEMBERSHIP')}
               </FormFieldSubmitButton>
+              {error && (
+                <InlineMessage
+                  value={translate('GAS_LIMIT_ESTIMATION_ERROR_MESSAGE', {
+                    $error: error.reason ? error.reason : error.message
+                  })}
+                />
+              )}
             </Form>
           );
         }}
@@ -237,4 +273,11 @@ export const MembershipFormUI = ({
   );
 };
 
-export default MembershipForm;
+const mapStateToProps = (state: AppState) => ({
+  isDemoMode: getIsDemoMode(state)
+});
+
+const connector = connect(mapStateToProps);
+type Props = ConnectedProps<typeof connector> & MembershipProps;
+
+export default connector(MembershipForm);

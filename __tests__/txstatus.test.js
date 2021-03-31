@@ -1,10 +1,9 @@
+import { getAllByTestId, getAllByText, getByText } from '@testing-library/testcafe';
 import { Selector } from 'testcafe';
-import { getByText, getAllByText } from '@testing-library/testcafe';
 
-import { PAGES, FIXTURE_SEND_AMOUNT, FIXTURES_CONST } from './fixtures';
+import { resetFeatureFlags, setFeatureFlag } from './featureflag-utils';
+import { FIXTURE_SEND_AMOUNT, FIXTURES_CONST, PAGES } from './fixtures';
 import { getTransValueByKey } from './translation-utils';
-import { setFeatureFlag, resetFeatureFlags } from './featureflag-utils';
-
 import TxStatusPage from './txstatus-page.po';
 
 const txStatusPage = new TxStatusPage();
@@ -24,7 +23,7 @@ test('Can fetch status of a successful TX', async (t) => {
 
   await t.expect(Selector('button').withText(getTransValueByKey('FETCH')).exists).eql(false);
   await t.expect(getAllByText(FIXTURE_SEND_AMOUNT, { exact: false })).ok();
-  await t.expect(getAllByText(getTransValueByKey('SUCCESS'))).ok();
+  await t.expect(getAllByTestId('SUCCESS')).ok();
 
   await resetFeatureFlags();
 });

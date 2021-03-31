@@ -1,29 +1,3 @@
-import uts46 from 'idna-uts46';
-import { keccak } from 'ethereumjs-util';
-
-export function normalise(name: string): string {
-  try {
-    return uts46.toUnicode(name, { useStd3ASCII: true, transitional: false });
-  } catch (e) {
-    throw e;
-  }
-}
-
-export const getNameHash = (name: string = ''): string => {
-  if (name === '') {
-    throw new Error('Empty string provided');
-  }
-
-  const normalizedName = normalise(name);
-  const labels = normalizedName.split('.');
-  const emptyNode = Buffer.alloc(32);
-  const rawNode = labels.reduceRight((node, currentLabel) => {
-    return keccak(Buffer.concat([node, keccak(currentLabel)]));
-  }, emptyNode);
-
-  return `0x${rawNode.toString('hex')}`;
-};
-
 export interface IBaseDomainRequest {
   name: string;
   labelHash: string;
@@ -73,17 +47,6 @@ export const modeStrMap = (name: string) => [
   `${name} is currently in the ‘reveal’ stage of the auction`,
   `${name} is not yet available due to the ‘soft launch’ of names.`
 ];
-
-export interface IModeMap {
-  [x: string]: (
-    domainData: IDomainData<NameState>,
-    nameHash?: string,
-    hash?: Buffer
-  ) =>
-    | {}
-    | { ownerAddress: string; resolvedAddress: string }
-    | { auctionCloseTime: string; revealBidTime: string };
-}
 
 export * from './validators';
 export { getResolvedENSAddress } from './ensFunctions';

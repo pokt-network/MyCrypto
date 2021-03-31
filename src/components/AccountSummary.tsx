@@ -1,10 +1,11 @@
 import React from 'react';
+
 import styled from 'styled-components';
 
 import { TTicker, TUuid } from '@types';
 
-import Currency from './Currency';
 import Account from './Account';
+import Currency from './Currency';
 
 interface StyleProps {
   paddingLeft?: string;
@@ -29,7 +30,7 @@ const SAccount = styled(Account)``;
 
 const SAccountWrapper = styled.div<StyleProps>`
   display: flex;
-  padding: 16px 15px 16px 19px;
+  padding: 16px 15px 16px 0px;
   ${({ paddingLeft }) => paddingLeft && `padding-left: ${paddingLeft};`}
   flex-direction: column;
   & > div {

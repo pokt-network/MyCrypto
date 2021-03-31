@@ -1,9 +1,6 @@
-import { StoreAccount, NetworkId, ITxConfig, ITxObject } from '@types';
-import { WALLET_STEPS } from '@components';
-import { getAssetByUUID, hexToString, hexWeiToString } from '@services';
-
-export const getAccountsInNetwork = (accounts: StoreAccount[], networkId: NetworkId) =>
-  accounts.filter((acc) => acc.networkId === networkId && WALLET_STEPS[acc.wallet]);
+import { getAssetByUUID } from '@services';
+import { ITxConfig, ITxObject, StoreAccount } from '@types';
+import { hexToString, hexWeiToString } from '@utils';
 
 export const makeDeployContractTxConfig = (
   rawTransaction: ITxObject,

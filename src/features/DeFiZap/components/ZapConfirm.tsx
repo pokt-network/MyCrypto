@@ -2,7 +2,9 @@ import React from 'react';
 
 import { ConfirmTransaction } from '@components';
 import { ITxConfig, ITxType } from '@types';
+
 import { IZapConfig } from '../config';
+import { ZapReceiptBanner } from './ZapReceiptBanner';
 
 interface Props {
   zapSelected: IZapConfig;
@@ -17,7 +19,7 @@ export default function ZapConfirm({ zapSelected, txConfig, onComplete }: Props)
       resetFlow={onComplete}
       txConfig={txConfig}
       txType={ITxType.DEFIZAP}
-      zapSelected={zapSelected}
+      customComponent={() => <ZapReceiptBanner zapSelected={zapSelected} />}
     />
   );
 }

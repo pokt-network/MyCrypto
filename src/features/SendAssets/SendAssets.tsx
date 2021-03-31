@@ -1,57 +1,72 @@
-import React, { useContext, useReducer, useEffect } from 'react';
-import { withRouter, RouteComponentProps } from 'react-router-dom';
-import * as qs from 'query-string';
+import React, { useContext, useEffect, useReducer } from 'react';
+
+import { parse } from 'query-string';
+import { RouteComponentProps, withRouter } from 'react-router-dom';
+
 import { GeneralStepper, TxReceiptWithProtectTx } from '@components';
-import { isWeb3Wallet, withProtectTxProvider } from '@utils';
-import { ITxReceipt, ISignedTx, IFormikFields, ITxConfig } from '@types';
-import { translateRaw } from '@translations';
-import { ROUTE_PATHS } from '@config';
 import { IStepperPath } from '@components/GeneralStepper/types';
+import { MANDATORY_TRANSACTION_QUERY_PARAMS, ROUTE_PATHS } from '@config';
 import { ProtectTxContext } from '@features/ProtectTransaction/ProtectTxProvider';
+import { withProtectTxProvider } from '@helpers';
 import {
-  StoreContext,
-  useFeatureFlags,
-  AccountContext,
   ProviderHandler,
+  StoreContext,
+  useAccounts,
   useAssets,
+  useFeatureFlags,
   useNetworks
 } from '@services';
+import { translateRaw } from '@translations';
+import { IFormikFields, ISignedTx, ITxConfig, ITxReceipt, TxQueryTypes } from '@types';
+import { getParam, isWeb3Wallet } from '@utils';
 import { isEmpty } from '@vendor';
 
-import { sendAssetsReducer, initialState } from './SendAssets.reducer';
 import {
   ConfirmTransactionWithProtectTx,
   SendAssetsFormWithProtectTx,
   SignTransactionWithProtectTx
 } from './components';
 import { parseQueryParams } from './helpers';
+import { initialState, sendAssetsReducer } from './SendAssets.reducer';
 
 function SendAssets({ location }: RouteComponentProps) {
   const [reducerState, dispatch] = useReducer(sendAssetsReducer, initialState);
   const {
-    state: { protectTxEnabled, protectTxShow, isPTXFree },
+    state: { enabled, protectTxShow, isPTXFree },
     setProtectTxTimeoutFunction
   } = useContext(ProtectTxContext);
   const { accounts } = useContext(StoreContext);
   const { assets } = useAssets();
   const { networks } = useNetworks();
-  const { IS_ACTIVE_FEATURE } = useFeatureFlags();
+  const { isFeatureActive } = useFeatureFlags();
+
+  const query = parse(location.search);
+  const res = MANDATORY_TRANSACTION_QUERY_PARAMS.reduce(
+    (obj, param) => ({ ...obj, [param]: getParam(query, param) }),
+    {}
+  );
 
   useEffect(() => {
-    const txConfigInit = parseQueryParams(qs.parse(location.search))(networks, assets, accounts);
-    if (txConfigInit && txConfigInit.type === 'resubmit') {
-      if (!txConfigInit.txConfig || isEmpty(txConfigInit.txConfig)) {
-        console.debug(
-          '[PrefilledTxs]: Error - Missing params. Requires gasPrice, gasLimit, to, data, nonce, from, value, and chainId'
-        );
-      } else {
-        dispatch({
-          type: sendAssetsReducer.actionTypes.SET_TXCONFIG,
-          payload: { txConfig: txConfigInit.txConfig, type: txConfigInit.type }
-        });
-      }
+    const txConfigInit = parseQueryParams(parse(location.search))(networks, assets, accounts);
+    if (
+      !txConfigInit ||
+      txConfigInit.type === reducerState.txQueryType ||
+      ![TxQueryTypes.SPEEDUP, TxQueryTypes.CANCEL].includes(txConfigInit.type)
+    )
+      return;
+
+    if (!txConfigInit.txConfig || isEmpty(txConfigInit.txConfig)) {
+      console.debug(
+        '[PrefilledTxs]: Error - Missing params. Requires gasPrice, gasLimit, to, data, nonce, from, value, and chainId'
+      );
+      return;
     }
-  }, [assets]);
+
+    dispatch({
+      type: sendAssetsReducer.actionTypes.SET_TXCONFIG,
+      payload: { txConfig: txConfigInit.txConfig, txQueryType: txConfigInit.type }
+    });
+  }, [res]);
 
   // Due to MetaMask deprecating eth_sign method,
   // it has different step order, where sign and send are one panel
@@ -61,7 +76,7 @@ function SendAssets({ location }: RouteComponentProps) {
       component: SendAssetsFormWithProtectTx,
       props: (({ txConfig }) => ({ txConfig }))(reducerState),
       actions: (form: IFormikFields, cb: any) => {
-        if (protectTxEnabled && !isPTXFree) {
+        if (enabled && !isPTXFree) {
           form.nonceField = (parseInt(form.nonceField, 10) + 1).toString();
         }
         dispatch({ type: sendAssetsReducer.actionTypes.FORM_SUBMIT, payload: { form, assets } });
@@ -96,7 +111,7 @@ function SendAssets({ location }: RouteComponentProps) {
       component: SendAssetsFormWithProtectTx,
       props: (({ txConfig }) => ({ txConfig }))(reducerState),
       actions: (form: IFormikFields, cb: any) => {
-        if (protectTxEnabled && !isPTXFree) {
+        if (enabled && !isPTXFree) {
           form.nonceField = (parseInt(form.nonceField, 10) + 1).toString();
         }
         dispatch({ type: sendAssetsReducer.actionTypes.FORM_SUBMIT, payload: { form, assets } });
@@ -135,16 +150,10 @@ function SendAssets({ location }: RouteComponentProps) {
     {
       label: ' ',
       component: TxReceiptWithProtectTx,
-      props: (({ txConfig, txReceipt }) => ({
+      props: (({ txConfig, txReceipt, txQueryType }) => ({
         txConfig,
         txReceipt,
-        pendingButton: {
-          text: translateRaw('TRANSACTION_BROADCASTED_RESUBMIT'),
-          action: (cb: any) => {
-            dispatch({ type: sendAssetsReducer.actionTypes.REQUEST_RESUBMIT, payload: {} });
-            cb();
-          }
-        }
+        txQueryType
       }))(reducerState)
     }
   ];
@@ -153,18 +162,21 @@ function SendAssets({ location }: RouteComponentProps) {
     const { senderAccount } = reducerState.txConfig!;
     const walletSteps =
       senderAccount && isWeb3Wallet(senderAccount.wallet) ? web3Steps : defaultSteps;
-    if (reducerState.type && reducerState.type === 'resubmit') {
+    if (
+      reducerState.txQueryType &&
+      [TxQueryTypes.CANCEL, TxQueryTypes.SPEEDUP].includes(reducerState.txQueryType)
+    ) {
       return walletSteps.slice(1, walletSteps.length);
     }
     return walletSteps;
   };
 
-  const { addNewTxToAccount } = useContext(AccountContext);
+  const { addTxToAccount } = useAccounts();
 
   // Adds TX to history
   useEffect(() => {
     if (reducerState.txReceipt) {
-      addNewTxToAccount(reducerState.txConfig!.senderAccount, reducerState.txReceipt);
+      addTxToAccount(reducerState.txConfig!.senderAccount, reducerState.txReceipt);
     }
   }, [reducerState.txReceipt]);
 
@@ -187,11 +199,12 @@ function SendAssets({ location }: RouteComponentProps) {
   return (
     <GeneralStepper
       steps={getPath()}
+      txNumber={reducerState.txNumber}
       defaultBackPath={ROUTE_PATHS.DASHBOARD.path}
       defaultBackPathLabel={translateRaw('DASHBOARD')}
       completeBtnText={translateRaw('SEND_ASSETS_SEND_ANOTHER')}
       wrapperClassName={`send-assets-stepper ${protectTxShow ? 'has-side-panel' : ''}`}
-      basic={IS_ACTIVE_FEATURE.PROTECT_TX}
+      basic={isFeatureActive('PROTECT_TX')}
     />
   );
 }

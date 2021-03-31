@@ -1,11 +1,11 @@
 require('dotenv').config();
 
 const ENV = {
-  // Should be set in order to use Mnemonic in AddAccount flow
-  E2E_MNEMONIC_PASSPHRASE: process.env.E2E_MNEMONIC_PASSPHRASE,
+  // Should be set in order to use PrivateKey in AddAccount flow
+  E2E_PRIVATE_KEY: process.env.E2E_PRIVATE_KEY,
 
   // Defined in github/workflow to run against mycryptobuilds
-  E2E_BASE_URL: process.env.E2E_BASE_URL || 'https://localhost:3000'
+  E2E_BASE_URL: process.env.E2E_BASE_URL
 };
 
 const ENV_KEYS = Object.keys(ENV);
@@ -22,16 +22,17 @@ const FIXTURES_CONST = {
 const PAGES = {
   DASHBOARD: `${FIXTURES_CONST.BASE_URL}/dashboard`,
   SETTINGS: `${FIXTURES_CONST.BASE_URL}/settings`,
+  SETTINGS_EXPORT: `${FIXTURES_CONST.BASE_URL}/settings/export`,
+  SETTINGS_IMPORT: `${FIXTURES_CONST.BASE_URL}/settings/import`,
   ADD_ACCOUNT_MNEMONIC: `${FIXTURES_CONST.BASE_URL}/add-account/mnemonic_phrase`,
   ADD_ACCOUNT_VIEWONLY: `${FIXTURES_CONST.BASE_URL}/add-account/view_only`,
   ADD_ACCOUNT_PRIVATE_KEY: `${FIXTURES_CONST.BASE_URL}/add-account/private_key`,
   ADD_ACCOUNT_KEYSTORE: `${FIXTURES_CONST.BASE_URL}/add-account/keystore_file`,
+  ADD_ACCOUNT_WEB3: `${FIXTURES_CONST.BASE_URL}/add-account/web3`,
   SEND: `${FIXTURES_CONST.BASE_URL}/send`,
   ADD_ACCOUNT: `${FIXTURES_CONST.BASE_URL}/add-account`,
   TX_STATUS: `${FIXTURES_CONST.BASE_URL}/tx-status`
 };
-
-const NETWORK_NAME_FIXTURE = 'Ropsten';
 
 const FIXTURE_ETHEREUM = 'Ethereum';
 
@@ -41,98 +42,65 @@ const FIXTURE_VIEW_ONLY_ADDRESS = '0x82D69476357A03415E92B5780C89e5E9e972Ce75';
 const FIXTURE_INCOMING_TX_HASH =
   '0x3513f1483cd87ffca1d2c2f9d5a6c49376c2c87d8e27b98e7ae973642cd8a10b';
 
-const FIXTURE_PRIVATE_KEY_ADDRESS = '0xff06ad5d076fa274b49c297f3fe9e29b5ba9aadc';
-const FIXTURE_TEST_PRIVATE_KEY = '1234123412341234123412341234123412341234123412341234123412341234';
-
-const FIXTURE_TEST_KEYSTORE_FILE_PASSWORD = 'TestTestTest';
-
 const FIXTURE_VIEW_ONLY_TOKENS = ['ANT', 'BAT', 'DAI'];
 
-const FIXTURE_PRIVATE_KEY_TOKENS = [];
-
-const FIXTURE_SEND_CONTACT = 'Mnemonic Phrase Account 1';
+const FIXTURE_SEND_CONTACT = 'Web3 Account 1';
 
 const FIXTURE_SEND_ADDRESS = '0x4bbeEB066eD09B7AEd07bF39EEe0460DFa261520';
 
 const FIXTURE_SEND_AMOUNT = '0.001';
 
-const FIXTURE_MYC_STORAGE_KEY = 'MYC_Storage';
+const FIXTURE_WEB3_ADDRESS = '0x32F08711dC8ca3EB239e01f427AE3713DB1f6Be3 ';
 
-const FIXTURE_LOCALSTORAGE_EMPTY = {
-  version: 'v1.0.0',
-  accounts: {},
-  addressBook: {
-    'a1acf1f2-0380-5bd6-90c3-2b4a0974a6fe': {
-      label: 'MyCrypto Tip Jar',
-      address: '0x4bbeEB066eD09B7AEd07bF39EEe0460DFa261520',
-      notes: 'Toss us a coin!',
-      network: 'Ethereum',
-      uuid: 'a1acf1f2-0380-5bd6-90c3-2b4a0974a6fe'
-    }
-  },
-  assets: {},
-  contracts: {},
-  networks: {},
-  notifications: {},
-  settings: {
-    fiatCurrency: 'USD',
-    darkMode: false,
-    dashboardAccounts: [],
-    inactivityTimer: 1800000,
-    rates: {},
-    language: 'en'
-  },
-  password: '',
-  networkNodes: { Ethereum: { selectedNode: 'web3' }, Ropsten: { selectedNode: 'web3' } },
-  mtime: 1581530607024
-};
+const FIXTURE_MYC_STORAGE_KEY = 'MYC_Storage';
 
 const FIXTURE_LOCALSTORAGE_WITH_ONE_ACC = {
   version: 'v1.0.0',
   accounts: {
     '1782c060-8bc0-55d6-8078-ff255b4aae90': {
       address: '0x32F08711dC8ca3EB239e01f427AE3713DB1f6Be3',
-      networkId: 'Ropsten',
-      wallet: 'MNEMONIC_PHRASE',
+      networkId: 'Goerli',
+      wallet: 'WEB3',
       dPath: "m/44'/60'/0'/0/0",
       assets: [
         {
-          ticker: 'RopstenETH',
-          name: 'Ropsten',
+          ticker: 'GoerliETH',
+          name: 'GoerliETH',
           decimal: 18,
-          networkId: 'Ropsten',
+          networkId: 'Goerli',
           type: 'base',
-          mappings: {},
           isCustom: false,
-          uuid: '77de68da-ecd8-53ba-bbb5-8edb1c8e14d7',
-          balance: { _hex: '0x3e73362871420000' },
-          mtime: 1581530607024
+          uuid: 'ac3478d6-9a3c-51fa-a2e6-0f5c3696165a',
+          balance: '10119688100000000000',
+          mtime: 1614873218615
         }
       ],
       transactions: [],
       favorite: false,
       mtime: 0,
       uuid: '1782c060-8bc0-55d6-8078-ff255b4aae90',
-      label: 'Mnemonic Phrase Account 1'
+      label: 'Web3 Account 1'
     }
   },
   addressBook: {
     'a1acf1f2-0380-5bd6-90c3-2b4a0974a6fe': {
-      label: 'MyCrypto Tip Jar',
+      label: 'MyCrypto Team Tip Jar',
       address: '0x4bbeEB066eD09B7AEd07bF39EEe0460DFa261520',
-      notes: 'Toss us a coin!',
+      notes: "This is MyCrypto's Donate address. Feel free to delete it!",
       network: 'Ethereum',
       uuid: 'a1acf1f2-0380-5bd6-90c3-2b4a0974a6fe'
     },
     'b6260cfc-c6ff-b385-af20-1cc95e308b33': {
-      label: 'Mnemonic Phrase Account 1',
+      label: 'Web3 Account 1',
       address: '0x32F08711dC8ca3EB239e01f427AE3713DB1f6Be3',
       notes: '',
-      network: 'Ropsten',
+      network: 'Goerli',
       uuid: 'b6260cfc-c6ff-b385-af20-1cc95e308b33'
     }
   },
   assets: {},
+  rates: {},
+  trackedAssets: {},
   contracts: {},
   networks: {},
   notifications: {
@@ -152,35 +120,32 @@ const FIXTURE_LOCALSTORAGE_WITH_ONE_ACC = {
     }
   },
   settings: {
+    canTrackProductAnalytics: true,
     fiatCurrency: 'USD',
     darkMode: false,
-    dashboardAccounts: ['256b782e-52bc-51f9-a357-602501e59700'],
-    inactivityTimer: 1800000,
-    rates: {},
-    language: 'en'
+    dashboardAccounts: ['1782c060-8bc0-55d6-8078-ff255b4aae90'],
+    excludedAssets: [],
+    language: 'en',
+    isDemoMode: false
   },
   password: '',
-  networkNodes: { Ethereum: { selectedNode: 'web3' }, Ropsten: { selectedNode: 'web3' } },
-  mtime: 1581530607024
+  networkNodes: {},
+  userActions: {},
+  mtime: 1607526708529
 };
 
 export {
   ENV,
   FIXTURES_CONST,
   PAGES,
-  NETWORK_NAME_FIXTURE,
   FIXTURE_SEND_CONTACT,
   FIXTURE_SEND_ADDRESS,
   FIXTURE_SEND_AMOUNT,
-  FIXTURE_LOCALSTORAGE_EMPTY,
   FIXTURE_LOCALSTORAGE_WITH_ONE_ACC,
   FIXTURE_MYC_STORAGE_KEY,
   FIXTURE_ETHEREUM,
   FIXTURE_VIEW_ONLY_ADDRESS,
   FIXTURE_VIEW_ONLY_TOKENS,
-  FIXTURE_PRIVATE_KEY_ADDRESS,
-  FIXTURE_TEST_PRIVATE_KEY,
-  FIXTURE_PRIVATE_KEY_TOKENS,
-  FIXTURE_TEST_KEYSTORE_FILE_PASSWORD,
-  FIXTURE_INCOMING_TX_HASH
+  FIXTURE_INCOMING_TX_HASH,
+  FIXTURE_WEB3_ADDRESS
 };

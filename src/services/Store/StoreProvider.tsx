@@ -1,75 +1,71 @@
-import React, { useState, useContext, useMemo, createContext, useEffect } from 'react';
-import flatten from 'ramda/src/flatten';
-import prop from 'ramda/src/prop';
-import uniqBy from 'ramda/src/uniqBy';
-import sortBy from 'ramda/src/sortBy';
-import isEmpty from 'lodash/isEmpty';
-import unionBy from 'lodash/unionBy';
-import property from 'lodash/property';
-import { getUnlockTimestamps } from '@mycrypto/unlock-scan';
-import { BigNumber } from 'bignumber.js';
+import React, { createContext, useEffect, useMemo, useState } from 'react';
 
+import { DEFAULT_NETWORK } from '@config';
+import { MembershipStatus } from '@features/PurchaseMembership/config';
+import { makeFinishedTxReceipt } from '@helpers';
+import { ENSService } from '@services/ApiService';
+import { HistoryService, ITxHistoryApiResponse } from '@services/ApiService/History';
+import { UniClaimResult } from '@services/ApiService/Uniswap/Uniswap';
+import { getTimestampFromBlockNum, getTxStatus, ProviderHandler } from '@services/EthService';
+import { isEthereumAccount } from '@services/Store/Account';
 import {
-  TAddress,
-  IRawAccount,
+  addAccounts,
+  deleteMembership,
+  fetchAssets,
+  fetchMemberships,
+  isMyCryptoMember,
+  scanTokens,
+  useDispatch,
+  useSelector
+} from '@store';
+import { translateRaw } from '@translations';
+import {
+  Asset,
+  Bigish,
+  DomainNameRecord,
+  IAccount,
+  IAccountAdditionData,
+  IPendingTxReceipt,
+  ITxStatus,
+  ITxType,
+  Network,
+  NetworkId,
   StoreAccount,
   StoreAsset,
-  Network,
-  TTicker,
-  ExtendedAsset,
-  IAccount,
-  WalletId,
-  Asset,
-  NetworkId,
-  Contact,
-  ITxType,
+  TAddress,
   TUuid,
-  ReserveAsset,
-  IPendingTxReceipt,
-  IAccountAdditionData
+  WalletId
 } from '@types';
 import {
-  isArrayEqual,
-  useInterval,
+  bigify,
   convertToFiatFromAsset,
+  generateDeterministicAddressUUID,
+  generateUUID,
+  getAccountsByNetwork,
+  getAccountsByViewOnly,
   getWeb3Config,
-  multiplyBNFloats,
-  weiToFloat,
-  generateAccountUUID,
-  useAnalytics,
+  isArrayEqual,
   isSameAddress,
-  sortByLabel
+  sortByLabel,
+  useInterval
 } from '@utils';
-import { ProviderHandler, getTxStatus, getTimestampFromBlockNum } from '@services/EthService';
-import {
-  MembershipStatus,
-  MEMBERSHIP_CONFIG,
-  MembershipState,
-  MEMBERSHIP_CONTRACTS
-} from '@features/PurchaseMembership/config';
-import { DEFAULT_NETWORK } from '@config';
-import { useEffectOnce, isEmpty as isVoid } from '@vendor';
-import { makeFinishedTxReceipt } from '@utils/transaction';
+import { isEmpty, isEmpty as isVoid, pipe, prop, sortBy, uniqBy, useEffectOnce } from '@vendor';
 
-import { getAccountsAssetsBalances, nestedToBigNumberJS } from './BalanceService';
-import {
-  getStoreAccounts,
-  getPendingTransactionsFromAccounts,
-  isNotExcludedAsset
-} from './helpers';
-import {
-  getTotalByAsset,
-  getAssetByTicker,
-  getNewDefaultAssetTemplateByNetwork,
-  useAssets
-} from './Asset';
-import { AccountContext, getDashboardAccounts } from './Account';
-import { SettingsContext } from './Settings';
-import { getNetworkById, useNetworks } from './Network';
-import { findNextUnusedDefaultLabel, useContacts } from './Contact';
-import { MyCryptoApiService, ANALYTICS_CATEGORIES } from '../ApiService';
+import { UniswapService } from '../ApiService';
+import { getDashboardAccounts, useAccounts } from './Account';
+import { getNewDefaultAssetTemplateByNetwork, getTotalByAsset, useAssets } from './Asset';
+import { getAccountsAssetsBalances } from './BalanceService';
+import { useContacts } from './Contact';
 import { findMultipleNextUnusedDefaultLabels } from './Contact/helpers';
-import { translateRaw } from '@translations';
+import {
+  getPendingTransactionsFromAccounts,
+  getStoreAccounts,
+  getTxsFromAccount,
+  isNotExcludedAsset,
+  isTokenMigration
+} from './helpers';
+import { getNetworkById, useNetworks } from './Network';
+import { useSettings } from './Settings';
 
 export interface CoinGeckoManifest {
   [uuid: string]: string;
@@ -81,28 +77,24 @@ interface IAddAccount {
 }
 
 export interface State {
-  readonly defaultAccount: StoreAccount;
   readonly accounts: StoreAccount[];
   readonly networks: Network[];
   readonly isMyCryptoMember: boolean;
-  readonly membershipState: MembershipState;
   readonly memberships?: MembershipStatus[];
-  readonly membershipExpirations: BigNumber[];
   readonly currentAccounts: StoreAccount[];
   readonly userAssets: Asset[];
   readonly coinGeckoAssetManifest: CoinGeckoManifest;
+  readonly txHistory: ITxHistoryApiResponse[];
+  readonly uniClaims: UniClaimResult[];
+  readonly ensOwnershipRecords: DomainNameRecord[];
+  readonly isEnsFetched: boolean;
   readonly accountRestore: { [name: string]: IAccount | undefined };
-  isDefault: boolean;
-  tokens(selectedAssets?: StoreAsset[]): StoreAsset[];
+  getDefaultAccount(includeViewOnly?: boolean, networkId?: NetworkId): StoreAccount | undefined;
   assets(selectedAccounts?: StoreAccount[]): StoreAsset[];
   totals(selectedAccounts?: StoreAccount[]): StoreAsset[];
   totalFiat(
     selectedAccounts?: StoreAccount[]
-  ): (getAssetRate: (asset: Asset) => number | undefined) => number;
-  assetTickers(targetAssets?: StoreAsset[]): TTicker[];
-  assetUUIDs(targetAssets?: StoreAsset[]): any[];
-  scanAccountTokens(account: StoreAccount, asset?: ExtendedAsset): Promise<void>;
-  scanTokens(asset?: ExtendedAsset): Promise<void>;
+  ): (getAssetRate: (asset: Asset) => number | undefined) => Bigish;
   deleteAccountFromCache(account: IAccount): void;
   restoreDeletedAccount(accountId: TUuid): void;
   addMultipleAccounts(
@@ -110,20 +102,6 @@ export interface State {
     walletId: WalletId | undefined,
     accounts: IAccountAdditionData[]
   ): IAccount[] | undefined;
-  addAccount(
-    networkId: NetworkId,
-    address: string,
-    accountType: WalletId | undefined,
-    dPath: string
-  ): IRawAccount | undefined;
-  getAssetByTicker(ticker: TTicker): Asset | undefined;
-  getAccount(a: IRawAccount): StoreAccount | undefined;
-  getDeFiAssetReserveAssets(
-    asset: StoreAsset
-  ): (
-    getPoolAssetReserveRate: (poolTokenUUID: string, assets: Asset[]) => ReserveAsset[]
-  ) => StoreAsset[];
-  scanForMemberships(accounts: StoreAccount[]): void;
 }
 export const StoreContext = createContext({} as State);
 
@@ -132,19 +110,18 @@ export const StoreContext = createContext({} as State);
 export const StoreProvider: React.FC = ({ children }) => {
   const {
     accounts: rawAccounts,
-    addNewTxToAccount,
+    addTxToAccount,
+    removeTxFromAccount,
     getAccountByAddressAndNetworkName,
-    updateAccountAssets,
-    updateAllAccountsAssets,
-    updateAccountsBalances,
+    updateAccounts,
     deleteAccount,
-    createAccountWithID,
     createMultipleAccountsWithIDs
-  } = useContext(AccountContext);
-  const { assets, addAssetsFromAPI } = useAssets();
-  const { settings, updateSettingsAccounts } = useContext(SettingsContext);
+  } = useAccounts();
+  const { assets } = useAssets();
+  const { settings, updateSettingsAccounts } = useSettings();
   const { networks } = useNetworks();
   const { createContact, contacts, getContactByAddressAndNetworkId, updateContact } = useContacts();
+  const dispatch = useDispatch();
 
   const [accountRestore, setAccountRestore] = useState<{ [name: string]: IAccount | undefined }>(
     {}
@@ -164,32 +141,6 @@ export const StoreProvider: React.FC = ({ children }) => {
     [rawAccounts, settings.dashboardAccounts, assets]
   );
 
-  const [memberships, setMemberships] = useState<MembershipStatus[] | undefined>([]);
-
-  const membershipExpirations = memberships
-    ? flatten(
-        Object.values(memberships).map((m) => Object.values(m.memberships).map((e) => e.expiry))
-      )
-    : [];
-
-  const membershipState = (() => {
-    if (!memberships) {
-      return MembershipState.ERROR;
-    } else if (Object.values(memberships).length === 0) {
-      return MembershipState.NOTMEMBER;
-    } else {
-      const currentTime = new BigNumber(Math.round(Date.now() / 1000));
-      if (
-        membershipExpirations.some((expirationTime) => expirationTime.isGreaterThan(currentTime))
-      ) {
-        return MembershipState.MEMBER;
-      } else {
-        return MembershipState.EXPIRED;
-      }
-    }
-  })();
-  const isMyCryptoMember = membershipState === MembershipState.MEMBER;
-
   // Naive polling to get the Balances of baseAsset and tokens for each account.
   useInterval(
     () => {
@@ -197,11 +148,12 @@ export const StoreProvider: React.FC = ({ children }) => {
       // before the async requests completes.
       // @todo: extract into seperate hook e.g. react-use
       // https://www.robinwieruch.de/react-hooks-fetch-data
+      if (isVoid(networks)) return;
       let isMounted = true;
       getAccountsAssetsBalances(currentAccounts).then((accountsWithBalances: StoreAccount[]) => {
         // Avoid the state change if the balances are identical.
         if (isMounted && !isArrayEqual(currentAccounts, accountsWithBalances.filter(Boolean))) {
-          updateAccountsBalances(accountsWithBalances);
+          updateAccounts(accountsWithBalances);
         }
       });
 
@@ -211,57 +163,11 @@ export const StoreProvider: React.FC = ({ children }) => {
     },
     60000,
     true,
-    [currentAccounts]
+    [networks]
   );
 
-  // Utility method to scan and populate memberships list
-  const scanForMemberships = (accountToScan?: StoreAccount[]) => {
-    const relevantAccounts = (accountToScan ? accountToScan : currentAccounts)
-      .filter((account) => account.networkId === DEFAULT_NETWORK)
-      .filter((account) => account.wallet !== WalletId.VIEW_ONLY);
-    const network = networks.find(({ id }) => DEFAULT_NETWORK === id);
-    if (!network || relevantAccounts.length === 0) return;
-    const provider = new ProviderHandler(network);
-    getUnlockTimestamps(
-      provider,
-      relevantAccounts.map((account) => account.address),
-      {
-        contracts: Object.values(MEMBERSHIP_CONFIG).map((membership) => membership.contractAddress)
-      }
-    )
-      .catch((_) => {
-        setMemberships(undefined);
-      })
-      .then(nestedToBigNumberJS)
-      .then((expiries) => {
-        const newMemberships = Object.keys(expiries)
-          .map((address: TAddress) => ({
-            address,
-            memberships: Object.keys(expiries[address])
-              .filter((contract) => expiries[address][contract].isGreaterThan(new BigNumber(0)))
-              .map((contract) => ({
-                type: MEMBERSHIP_CONTRACTS[contract],
-                expiry: expiries[address][contract]
-              }))
-          }))
-          .filter((m) => m.memberships.length > 0);
-        setMemberships(
-          unionBy(newMemberships, memberships ? memberships : [], property('address'))
-        );
-      });
-  };
-
-  useAnalytics({
-    category: ANALYTICS_CATEGORIES.ROOT,
-    actionName: accounts.length === 0 ? 'New User' : 'Returning User',
-    eventParams: {
-      visitStartAccountNumber: accounts.length
-    },
-    triggerOnMount: true
-  });
-
   useEffectOnce(() => {
-    scanForMemberships();
+    dispatch(fetchMemberships());
   });
 
   useEffect(() => {
@@ -269,9 +175,9 @@ export const StoreProvider: React.FC = ({ children }) => {
   }, [currentAccounts]);
 
   // fetch assets from api
-  useEffect(() => {
-    MyCryptoApiService.instance.getAssets().then(addAssetsFromAPI);
-  }, [assets.length]);
+  useEffectOnce(() => {
+    dispatch(fetchAssets());
+  });
 
   // A change to pending txs is detected
   useEffect(() => {
@@ -281,6 +187,30 @@ export const StoreProvider: React.FC = ({ children }) => {
     // This interval is used to poll for status of txs.
     const txStatusLookupInterval = setInterval(() => {
       pendingTransactions.forEach((pendingTxReceipt) => {
+        const senderAccount = getAccountByAddressAndNetworkName(
+          pendingTxReceipt.from,
+          pendingTxReceipt.asset.networkId
+        );
+        if (!senderAccount) return;
+
+        const storeAccount = accounts.find((acc) =>
+          isSameAddress(senderAccount.address, acc.address)
+        ) as StoreAccount;
+
+        const txs = getTxsFromAccount([storeAccount]);
+        const overwritingTx = txs.find(
+          (t) =>
+            t.nonce === pendingTxReceipt.nonce &&
+            t.asset.networkId === pendingTxReceipt.asset.networkId &&
+            t.hash !== pendingTxReceipt.hash &&
+            t.status === ITxStatus.SUCCESS
+        );
+
+        if (overwritingTx) {
+          removeTxFromAccount(senderAccount, pendingTxReceipt);
+          return;
+        }
+
         const network = getNetworkById(pendingTxReceipt.asset.networkId, networks);
         // If network is not found in the pendingTransactionObject, we cannot continue.
         if (!network) return;
@@ -298,11 +228,6 @@ export const StoreProvider: React.FC = ({ children }) => {
           ]).then(([txStatus, txTimestamp]) => {
             // txStatus and txTimestamp return undefined on failed lookups.
             if (!isMounted || !txStatus || !txTimestamp) return;
-            const senderAccount = getAccountByAddressAndNetworkName(
-              pendingTxReceipt.from,
-              pendingTxReceipt.asset.networkId
-            );
-            if (!senderAccount) return;
 
             const finishedTxReceipt = makeFinishedTxReceipt(
               pendingTxReceipt,
@@ -310,14 +235,14 @@ export const StoreProvider: React.FC = ({ children }) => {
               txTimestamp,
               txResponse.blockNumber
             );
-            addNewTxToAccount(senderAccount, finishedTxReceipt);
-            const storeAccount = accounts.find((acc) =>
-              isSameAddress(senderAccount.address, acc.address)
-            ) as StoreAccount;
-            if (finishedTxReceipt.txType === ITxType.DEFIZAP) {
-              state.scanAccountTokens(storeAccount);
+            addTxToAccount(senderAccount, finishedTxReceipt);
+            if (
+              finishedTxReceipt.txType === ITxType.DEFIZAP ||
+              isTokenMigration(finishedTxReceipt.txType)
+            ) {
+              dispatch(scanTokens({ accounts: [storeAccount] }));
             } else if (finishedTxReceipt.txType === ITxType.PURCHASE_MEMBERSHIP) {
-              scanForMemberships([storeAccount]);
+              dispatch(fetchMemberships([storeAccount]));
             }
           });
         });
@@ -337,27 +262,61 @@ export const StoreProvider: React.FC = ({ children }) => {
       return manifest;
     }, {}) || {};
 
+  // TX HISTORY
+  const [txHistory, setTxHistory] = useState<ITxHistoryApiResponse[]>([]);
+
+  const mainnetAccounts = accounts
+    .filter((a) => a.networkId === DEFAULT_NETWORK)
+    .map((a) => a.address);
+
+  // Uniswap UNI token claims
+  const [uniClaims, setUniClaims] = useState<UniClaimResult[]>([]);
+
+  useEffect(() => {
+    if (mainnetAccounts.length > 0) {
+      HistoryService.instance.getHistory(mainnetAccounts).then((history) => {
+        if (history !== null) {
+          setTxHistory(history);
+        }
+      });
+
+      UniswapService.instance.getClaims(mainnetAccounts).then((rawClaims) => {
+        if (rawClaims !== null) {
+          UniswapService.instance
+            .isClaimed(networks.find((n) => n.id === DEFAULT_NETWORK)!, rawClaims)
+            .then((claims) => {
+              setUniClaims(claims);
+            });
+        }
+      });
+    }
+  }, [mainnetAccounts.length]);
+
+  const [ensOwnershipRecords, setEnsOwnershipRecords] = useState<DomainNameRecord[]>(
+    [] as DomainNameRecord[]
+  );
+  const [isEnsFetched, setIsEnsFetched] = useState<boolean>(false);
+
+  useEffect(() => {
+    (async () => {
+      setEnsOwnershipRecords(
+        await ENSService.fetchOwnershipRecords(accounts.filter(isEthereumAccount))
+      );
+      setIsEnsFetched(true);
+    })();
+  }, [accounts.length]);
+
   const state: State = {
     accounts,
     networks,
-    isMyCryptoMember,
-    membershipState,
-    memberships,
-    membershipExpirations,
+    isMyCryptoMember: useSelector(isMyCryptoMember),
     currentAccounts,
     accountRestore,
     coinGeckoAssetManifest,
-    get defaultAccount() {
-      return sortByLabel(state.accounts)[0];
-    },
-    /**
-     * Check if the user has already added an account to our persistence layer.
-     */
-    get isDefault() {
-      return (
-        (!state.accounts || isVoid(state.accounts)) && (!isVoid(contacts) || contacts.length < 1)
-      );
-    },
+    txHistory,
+    uniClaims,
+    ensOwnershipRecords,
+    isEnsFetched,
     get userAssets() {
       const userAssets = state.accounts
         .filter((a: StoreAccount) => a.wallet !== WalletId.VIEW_ONLY)
@@ -366,10 +325,14 @@ export const StoreProvider: React.FC = ({ children }) => {
       const uniq = uniqBy(prop('uuid'), userAssets);
       return sortBy(prop('ticker'), uniq);
     },
+    getDefaultAccount: (includeViewOnly?: boolean, networkId?: NetworkId) =>
+      pipe(
+        (a: StoreAccount[]) => getAccountsByNetwork(a, networkId),
+        (a) => getAccountsByViewOnly(a, includeViewOnly),
+        sortByLabel
+      )(accounts)[0],
     assets: (selectedAccounts = state.accounts) =>
       selectedAccounts.flatMap((account: StoreAccount) => account.assets),
-    tokens: (selectedAssets = state.assets()) =>
-      selectedAssets.filter((asset: StoreAsset) => asset.type !== 'base'),
     totals: (selectedAccounts = state.accounts) =>
       Object.values(getTotalByAsset(state.assets(selectedAccounts))),
     totalFiat: (selectedAccounts = state.accounts) => (
@@ -377,35 +340,25 @@ export const StoreProvider: React.FC = ({ children }) => {
     ) =>
       state
         .totals(selectedAccounts)
-        .reduce((sum, asset) => (sum += convertToFiatFromAsset(asset, getAssetRate(asset))), 0),
-
-    assetTickers: (targetAssets = state.assets()) => [
-      ...new Set(targetAssets.map((a) => a.ticker))
-    ],
-    assetUUIDs: (targetAssets = state.assets()) => {
-      return [...new Set(targetAssets.map((a: StoreAsset) => a.uuid))];
-    },
-    scanAccountTokens: async (account: StoreAccount, asset?: ExtendedAsset) =>
-      updateAccountAssets(account, asset ? [...assets, asset] : assets),
-    scanTokens: async (asset?: ExtendedAsset) =>
-      updateAllAccountsAssets(accounts, asset ? [...assets, asset] : assets),
+        .reduce(
+          (sum, asset) => sum.plus(bigify(convertToFiatFromAsset(asset, getAssetRate(asset)))),
+          bigify(0)
+        ),
     deleteAccountFromCache: (account) => {
       setAccountRestore((prevState) => ({ ...prevState, [account.uuid]: account }));
       deleteAccount(account);
       updateSettingsAccounts(
         settings.dashboardAccounts.filter((dashboardUUID) => dashboardUUID !== account.uuid)
       );
-      setMemberships((prevState) => prevState?.filter((s) => s.address !== account.address));
+      dispatch(deleteMembership({ address: account.address, networkId: account.networkId }));
     },
     restoreDeletedAccount: (accountId) => {
       const account = accountRestore[accountId];
       if (isEmpty(account)) {
         throw new Error('Unable to restore account! No account with id specified.');
       }
-
-      const { uuid, ...restAccount } = account!;
-      createAccountWithID(restAccount, uuid);
-      setAccountRestore((prevState) => ({ ...prevState, [uuid]: undefined }));
+      dispatch(addAccounts([account!]));
+      setAccountRestore((prevState) => ({ ...prevState, [account!.uuid]: undefined }));
     },
     addMultipleAccounts: (
       networkId: NetworkId,
@@ -429,7 +382,7 @@ export const StoreProvider: React.FC = ({ children }) => {
         transactions: [],
         favorite: false,
         mtime: 0,
-        uuid: generateAccountUUID(networkId, address)
+        uuid: generateDeterministicAddressUUID(networkId, address)
       }));
       if (newRawAccounts.length === 0) return;
       const newLabels = findMultipleNextUnusedDefaultLabels(
@@ -439,82 +392,27 @@ export const StoreProvider: React.FC = ({ children }) => {
       newRawAccounts.forEach((rawAccount, idx) => {
         const existingContact = getContactByAddressAndNetworkId(rawAccount.address, networkId);
         if (existingContact && existingContact.label === translateRaw('NO_LABEL')) {
-          updateContact(existingContact.uuid, {
+          updateContact({
             ...existingContact,
             label: newLabels[idx]
           });
         } else if (!existingContact) {
-          const newLabel: Contact = {
+          const newLabel = {
             label: newLabels[idx],
             address: rawAccount.address,
             notes: '',
-            network: rawAccount.networkId
+            network: rawAccount.networkId,
+            uuid: generateUUID()
           };
           createContact(newLabel);
         }
       });
       createMultipleAccountsWithIDs(newRawAccounts);
       return newRawAccounts;
-    },
-    addAccount: (
-      networkId: NetworkId,
-      address: TAddress,
-      accountType: WalletId | undefined,
-      dPath: string
-    ) => {
-      const network: Network | undefined = getNetworkById(networkId, networks);
-      if (!network || !address || !!getAccountByAddressAndNetworkName(address, networkId)) return;
-
-      const walletType =
-        accountType! === WalletId.WEB3 ? WalletId[getWeb3Config().id] : accountType!;
-      const newAsset: Asset = getNewDefaultAssetTemplateByNetwork(assets)(network);
-      const accountUUID = generateAccountUUID(networkId, address);
-      const account: IRawAccount = {
-        address,
-        networkId,
-        wallet: walletType,
-        dPath,
-        assets: [{ uuid: newAsset.uuid, balance: '0', mtime: Date.now() }],
-        transactions: [],
-        favorite: false,
-        mtime: 0
-      };
-
-      const existingContact = getContactByAddressAndNetworkId(account.address, networkId);
-      if (existingContact) {
-        updateContact(existingContact.uuid, {
-          ...existingContact,
-          label: findNextUnusedDefaultLabel(account.wallet)(contacts)
-        });
-      } else {
-        const newLabel: Contact = {
-          label: findNextUnusedDefaultLabel(account.wallet)(contacts),
-          address: account.address,
-          notes: '',
-          network: account.networkId
-        };
-        createContact(newLabel);
-      }
-      createAccountWithID(account, accountUUID);
-
-      return account;
-    },
-    getAssetByTicker: getAssetByTicker(assets),
-    getAccount: ({ address, networkId }) =>
-      accounts.find((a) => isSameAddress(a.address, address) && a.networkId === networkId),
-    getDeFiAssetReserveAssets: (poolAsset: StoreAsset) => (
-      getPoolAssetReserveRate: (poolTokenUuid: string, assets: Asset[]) => ReserveAsset[]
-    ) =>
-      getPoolAssetReserveRate(poolAsset.uuid, assets).map((reserveAsset) => ({
-        ...reserveAsset,
-        balance: multiplyBNFloats(
-          weiToFloat(poolAsset.balance, poolAsset.decimal).toString(),
-          reserveAsset.reserveExchangeRate
-        ),
-        mtime: Date.now()
-      })),
-    scanForMemberships
+    }
   };
 
   return <StoreContext.Provider value={state}>{children}</StoreContext.Provider>;
 };
+
+export default StoreProvider;

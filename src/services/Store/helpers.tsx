@@ -1,22 +1,24 @@
-import { bigNumberify } from 'ethers/utils';
+import { BigNumber } from '@ethersproject/bignumber';
 
+import { TOKEN_MIGRATIONS } from '@config';
+import { translateRaw } from '@translations';
 import {
-  Network,
-  AssetBalanceObject,
   Asset,
-  StoreAsset,
-  IAccount,
-  StoreAccount,
-  ITxStatus,
-  ITxReceipt,
+  AssetBalanceObject,
   ExtendedContact,
+  IAccount,
   IPendingTxReceipt,
+  ITxReceipt,
+  ITxStatus,
+  ITxType,
+  Network,
+  StoreAccount,
+  StoreAsset,
   TUuid
 } from '@types';
 
 import { getLabelByAccount } from './Contact';
 import { getNetworkById } from './Network';
-import { translateRaw } from '@translations';
 
 const getAssetsByUuid = (accountAssets: AssetBalanceObject[], assets: Asset[]): StoreAsset[] =>
   accountAssets
@@ -27,7 +29,7 @@ const getAssetsByUuid = (accountAssets: AssetBalanceObject[], assets: Asset[]): 
         ...asset
       };
     })
-    .map((asset) => ({ ...asset, balance: bigNumberify(asset.balance), mtime: Date.now() }));
+    .map((asset) => ({ ...asset, balance: BigNumber.from(asset.balance), mtime: Date.now() }));
 
 export const getStoreAccounts = (
   accounts: IAccount[],
@@ -66,3 +68,5 @@ export const isNotExcludedAsset = (excludedAssetUuids: TUuid[]) => (asset: Store
 
 export const isExcludedAsset = (excludedAssetUuids: TUuid[]) => (asset: StoreAsset): boolean =>
   (excludedAssetUuids || []).includes(asset.uuid);
+
+export const isTokenMigration = (type: ITxType) => TOKEN_MIGRATIONS.includes(type);

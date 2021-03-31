@@ -1,9 +1,10 @@
 import React from 'react';
+
 import { simpleRender, waitFor } from 'test-utils';
 
+import SignTransaction from '@features/SendAssets/components/SignTransaction';
 import { fTxConfig } from '@fixtures';
 import { WalletId } from '@types';
-import SignTransaction from '@features/SendAssets/components/SignTransaction';
 
 import { getHeader } from './helper';
 
@@ -21,8 +22,9 @@ const getComponent = () => {
 
 jest.mock('trezor-connect', () => {
   // Must be imported here to prevent issues with jest
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, jest/no-mocks-import
   const { mockFactory } = require('../__mocks__/trezor');
-  return mockFactory('', 3, { v: 41, r: 2, s: 4 });
+  return mockFactory('', 3, { v: '0x29', r: '0x2', s: '0x4' });
 });
 
 describe('SignTransactionWallets: Trezor', () => {
@@ -40,7 +42,7 @@ describe('SignTransactionWallets: Trezor', () => {
 
     // Expect signed payload to be the following buffer given the v,r,s
     await waitFor(() =>
-      expect(defaultProps.onComplete).toBeCalledWith(
+      expect(defaultProps.onComplete).toHaveBeenCalledWith(
         Buffer.from([
           233,
           50,

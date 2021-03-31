@@ -1,12 +1,12 @@
-import { useState, useReducer, useEffect } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 
-import { TAddress, ITxObject, ITxHash } from '@types';
-import { useUnmount } from '@vendor';
+import { ITxHash, ITxObject, TAddress } from '@types';
 import { isSameAddress } from '@utils';
+import { useUnmount } from '@vendor';
 
-import { default as WalletConnectService } from './WalletConnectService';
 import { initialState, WcReducer } from './reducer';
-import { IWalletConnectService, IUseWalletConnect } from './types';
+import { IUseWalletConnect, IWalletConnectService } from './types';
+import { default as WalletConnectService } from './WalletConnectService';
 
 const isExpectedAddress = (received: TAddress, target: TAddress): boolean =>
   isSameAddress(received, target);
@@ -103,7 +103,13 @@ export function useWalletConnect(): IUseWalletConnect {
     });
   };
 
-  const signMessage = async (msg: string, address: string): Promise<string> => {
+  const signMessage = async ({
+    msg,
+    address
+  }: {
+    msg: string;
+    address: TAddress;
+  }): Promise<string> => {
     dispatch({ type: WcReducer.actionTypes.SIGN_REQUEST });
     if (!state.detectedAddress || !state.detectedChainId || !service) {
       throw new Error(`[useWalletConnect]: cannot call signMessage before successful connection`);
